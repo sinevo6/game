@@ -1,238 +1,524 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>作業管理 - 検索条件最適化版</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        .whitespace-pre-wrap { white-space: pre-wrap; word-break: break-all; }
-        .hidden-row { display: none; }
-        mark { background-color: #fef08a; color: #1e293b; padding: 0 1px; }
-
-        /* --- テーブル全体の幅固定（合計 550px） --- */
-        #mainTable { 
-            table-layout: fixed !important; 
-            width: 550px !important; 
-            border-collapse: collapse;
-        }
-
-        .col-arrow { width: 15px !important; text-align: center; color: #94a3b8; }
-        .col-work-code { width: 30px !important; text-align: center; font-family: monospace; }
-        .col-menu { width: 180px !important; }
-        .col-default { width: 280px !important; }
-        .col-price { width: 40px !important; text-align: right; }
-        th.col-price { text-align: center !important; }
-        .col-check { width: 30px !important; text-align: center; }
-
-        th, td { 
-            overflow: hidden; text-overflow: ellipsis; white-space: nowrap; 
-            padding: 6px 4px !important; border: 1px solid #e2e8f0; font-size: 12px !important;
-        }
-        th { background-color: #1e293b; color: white; }
-
-        #totalBar {
-            position: sticky; top: 0; z-index: 50;
-            background: #fff; border: 2px solid #6366f1;
-            width: 550px;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <title>パソコン・デジタルサポート商談メモ</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.jsdelivr.net/npm/tailwindcss-cdn@3.4.3/tailwindcss.min.js"></script>
+  <!-- JsBarcode ライブラリの読み込み -->
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+  <!-- Papa Parse ライブラリの読み込み -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <!-- SortableJS ライブラリの読み込み -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
+  <!-- 外部CSSの読み込み -->
+  <link rel="stylesheet" href="style.css">
 </head>
-<body class="bg-gray-100 p-4">
+<body>
 
-    <div class="max-w-6xl">
-        <div id="totalBar" class="mb-3 p-3 rounded-lg shadow-md flex justify-between items-center">
-            <div class="text-sm font-bold text-slate-600">選択中の合計:</div>
-            <div class="text-xl font-black text-indigo-600">¥ <span id="totalAmount">0</span></div>
-        </div>
+  <div class="sticky-header">
+      <button id="product-list">商品</button>
+      <button id="measure-btn">施策</button>
+      <button id="support-menu-btn">サポート</button>
+      <button id="print-btn">印刷</button>
+      <div style="margin-left: 30px; display: inline-flex; gap: 6px;">
+          <button id="save-btn">保存</button>
+          <button id="load-btn">読込</button>
+      </div>
+  </div>
 
-        <div class="mb-3 flex items-center gap-3" style="width: 550px;">
-            <input type="text" id="searchInput" placeholder="メニュー名で検索..." 
-                class="flex-grow p-2 border border-slate-300 rounded text-sm focus:outline-none">
-            
-            <label class="flex items-center gap-1 text-slate-600 text-xs font-bold cursor-pointer whitespace-nowrap">
-                <input type="checkbox" id="searchAllColumns" onchange="runSearch()"> 詳細も検索
-            </label>
-        </div>
+  <div class="header-container">
+    <h1>パソコン・デジタルサポート商談メモ</h1>
+    
+    <div class="meta-tables-wrapper">
+      <table id="meta-group-tbl" class="meta-info-tbl">
+        <tr>
+          <th>受付日</th>
+          <th>販売担当</th>
+          <th>AC担当</th>
+        </tr>
+        <tr>
+          <td class="editable-cell" id="reception-date-cell" contenteditable="true"></td>
+          <td class="editable-cell" contenteditable="true">
+            <select>
 
-        <div class="bg-white shadow-sm overflow-hidden hidden inline-block" id="tableContainer">
-            <table id="mainTable">
-                <thead><tr id="tableHeader"></tr></thead>
-                <tbody id="tbody" class="text-slate-700"></tbody>
-            </table>
-        </div>
+                <option></option>
+                <option>鴨下</option>
+                <option>熊谷</option>
+                <option>青葉</option>
+                <option>杉本</option>
+                <option>石山</option>
+                <option>遠藤</option>
+                <option>片柳</option>
+                <option>金澤</option>
+                <option>柴山</option>
+                <option>中世古</option>
+                <option>佐々木</option>
+            </select>
+          </td>
+          <td class="editable-cell" contenteditable="true">
+            <select>
+                <option></option>
+                <option>杉本</option>
+                <option>石山</option>
+            </select>
+          </td>
+        </tr>
+      </table>
+
+      <table id="meta-case-tbl" class="meta-info-tbl">
+        <tr>
+          <th>案件番号</th>
+        </tr>
+        <tr>
+          <td class="editable-cell" contenteditable="true"></td>
+        </tr>
+      </table>
     </div>
+  </div>
 
-    <script>
-        const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRguVx6K4z5w1QNwtfIwbY_f6Ikaqwawj7MmsWCWxNmJG7ugKAnvmrluW2Oxoz5FfiLvKSWRvJ23GXN/pub?output=csv';
-        const detailColumnNames = ["作業内容", "補足事項", "関連メニュー"];
-        let allData = []; let mapping = { main: [], detail: [] };
+  <div class="customer-top-row">
+    <table id="customer-tbl">
+      <tr class="furigana-row">
+        <th>フリガナ</th>
+        <td><div class="editable-cell furigana-input" contenteditable="true" lang="ja"></div></td>
+      </tr>
+      <tr class="name-row">
+        <th>お名前</th>
+        <td>
+          <div class="name-input-wrapper">
+            <div class="editable-cell name-cell" contenteditable="true" lang="ja"></div>
+            <span class="sama-text">様</span>
+          </div>
+        </td>
+      </tr>
+    </table>
 
-        async function init() {
-            try {
-                const res = await fetch(csvUrl);
-                const text = await res.text();
-                allData = parseCSV(text);
-                buildHeader(allData[0]);
-                render(allData.slice(1));
-                document.getElementById('searchInput').addEventListener('input', runSearch);
-            } catch (e) { console.error(e); }
-        }
+    <table id="tel-tbl">
+      <tr>
+        <th>携帯</th>
+        <td class="editable-cell tel-input" contenteditable="true" inputmode="numeric" lang="en"></td>
+      </tr>
+      <tr>
+        <th>電話</th>
+        <td class="editable-cell tel-input" contenteditable="true" inputmode="numeric" lang="en"></td>
+      </tr>
+    </table>
+  </div>
 
-        function runSearch() {
-            render(allData.slice(1), document.getElementById('searchInput').value);
-        }
+  <table id="address-tbl">
+    <tr class="zip-row">
+      <th rowspan="2">ご住所</th>
+      <td>
+        <div class="zip-input-wrapper">
+          <span class="zip-symbol" style="border-top: none;">〒</span>
+          <div class="editable-cell" id="zip-input" contenteditable="true" inputmode="numeric" lang="en"></div>
+        </div>
+      </td>
+    </tr>
+    <tr class="street-row">
+      <td class="editable-cell" id="address-input" contenteditable="true" lang="ja"></td>
+    </tr>
+  </table>
 
-        function parseCSV(s) {
-            const arr = []; let q = false, r = [''], c = 0;
-            for (let i = 0; i < s.length; i++) {
-                const char = s[i], next = s[i+1];
-                if (char === '"') { if (q && next === '"') { r[c] += '"'; i++; } else { q = !q; } }
-                else if (char === ',' && !q) { r[++c] = ''; }
-                else if (char === '\n' && !q) { arr.push(r); r = ['']; c = 0; }
-                else if (char === '\r' && !q) continue;
-                else r[c] += char;
-            }
-            if (r.length > 1 || r[0] !== '') arr.push(r);
-            return arr;
-        }
+  <table class="disclaimer-tbl">
+    <tr>
+      <th>免責事項</th>
+      <th>お客様説明</th>
+    </tr>
+    <tr>
+      <td>
+        ケーズデンキに作業を依頼する場合、プログラム、データ、ソフトウェア等の損傷や喪失についてはケーズデンキの過失の有無を問わず
+        いかなる場合においてもケーズデンキはその責を負わないこととします。パソコン内にある機密情報(パスワード含む)はお客様の責任で消去してください。
+        それらの機密漏洩に関してケーズデンキは一切その責を負わないものとします。
+      </td>
+      <td class="editable-cell" contenteditable="true">説明後✓<br>済 ▢</td>
+    </tr>
+  </table>
 
-        function buildHeader(head) {
-            const hEl = document.getElementById('tableHeader');
-            hEl.innerHTML = '<th class="col-arrow"></th>';
+  <table id="delivery-info-tbl">
+    <tr>
+        <th>出庫区分</th>
+        <th>作業種別</th>
+        <th>訪問日/店頭お渡し日</th>
+        <th>お時間</th>
+        <th>お届け品</th>
+        <th>アカウント用紙</th>
+    </tr>
+    <tr>
+        <td>
+            <select>
+                <option value="持帰">0:持帰</option>
+                <option value="後来" selected>1:後来</option>
+                <option value="自配">2:自配</option>
+                <option value="セ配">3:セ配</option>
+                <option value="他来">4:他来</option>
+                <option value="宅配">5:宅配</option>
+            </select>
+        </td>
+        <td>
+            <select>
+                <option value=""></option>
+                <option value="出張">出張</option>
+                <option value="店頭" selected>店頭</option>
+            </select>
+        </td>
+        <td id="visit-date-cell" style="cursor: pointer;"></td>
+        <td contenteditable="true" id="visit-time-cell" style="cursor: pointer;"></td>
+        <td>  
+            <select>
+                <option value=""></option>    
+                <option value="あり">あり</option>
+                <option value="なし">なし</option>
+            </select>
+        </td>
+        <td>  
+            <select>
+                <option value=""></option>    
+                <option value="あり">あり</option>
+                <option value="なし">なし</option>
+            </select>
+        </td>
+    </tr>
+  </table>
 
-            head.forEach((t, i) => {
-                const txt = t.trim();
-                if (txt.toUpperCase().includes("JAN")) return;
-                let cls = "col-default";
-                if (i === 0) cls = "col-work-code";
-                else if (txt.includes("金額")) cls = "col-price";
-                else if (txt.includes("メニュー")) cls = "col-menu";
-                
-                const conf = { i, label: txt, cls };
-                if (detailColumnNames.some(d => txt.includes(d))) {
-                    mapping.detail.push(conf);
-                } else {
-                    mapping.main.push(conf);
-                    const th = document.createElement('th');
-                    th.className = cls;
-                    th.textContent = txt;
-                    hEl.appendChild(th);
-                }
-            });
-            hEl.innerHTML += '<th class="col-check"><input type="checkbox" id="masterCheck" onclick="toggleAllChecks(this.checked)"></th>';
-        }
+  <div class="normal-group">
+      <h3 id="normal-group-title" style="display: none;">【 会計①：通常商品 ＋ 作業 】</h3>
+      
+      <table id="product-tbl">
+          <thead>
+            <tr>
+              <th class="no-border"></th>
+              <th>No</th>
+              <th>型番</th>
+              <th>JAN</th>
+              <th>バーコード</th>
+              <th>数量</th>
+              <th>単価</th>
+              <th>金額</th>
+              <th>保証</th>
+              <th>商品<br>状態</th>
+              <th>出庫</th>
+              <th>在庫店<br>コード</th>
+              <th>在庫<br>情報</th>
+              <th>発注</th>
+              <th class="no-border"></th>
+            </tr>
+          </thead>
+          <tbody id="product-tbody">
+              <tr id="product-row-template" class="product-row" style="display: none;">
+                  <td class="no-border add-btn-cell"></td>
+                  <td class="row-no"></td>
+                  <td class="product-type" contenteditable="true"></td>
+                  <td class="jan-cell"></td>  
+                  <td><svg class="barcode-svg"></svg></td>  
+                  <td class="quantity" contenteditable="true" inputmode="numeric">1</td>
+                  <td class="price" contenteditable="true" inputmode="numeric"></td>
+                  <td class="total" data-readonly></td>
+                  <td>
+                    <select name="warranty-select" class="warranty-select">
+                      <option value="" selected></option>
+                      <option value="加入">加入</option>
+                    </select>
+                  </td>
+                  <td>
+                    <select name="product-status">
+                      <option value="00">00</option>
+                      <option value="展示">展示</option>
+                    </select>
+                  </td>
+                  <td>
+                    <select name="outbound-type">
+                      <option value="持帰">0:持帰</option>
+                      <option value="後来" selected>1:後来</option>
+                      <option value="自配">2:自配</option>
+                      <option value="セ配">3:セ配</option>
+                      <option value="他来">4:他来</option>
+                      <option value="宅配">5:宅配</option>
+                    </select>
+                  </td>
+                  <td class="stock-code" contenteditable="true" inputmode="numeric">1284</td>
+                  <td>
+                    <select name="stock-info-type">
+                      <option value="1">1:移動</option>
+                      <option value="2">2:仕入</option>
+                      <option value="3" selected>3:在庫</option>
+                      <option value="4">4:仕移</option>
+                      <option value="6">6:D移</option>
+                      <option value="9">9:D仕</option>
+                    </select>
+                  </td>
+                  <td>
+                    <select name="order-type">
+                      <option value=""></option>
+                      <option value="持帰">〇本</option>
+                      <option value="後来">△緊</option>
+                    </select>
+                  </td>
+                  <td class="no-border"><button class="delete-btn-circle delete-product-btn" title="削除">×</button></td>
+              </tr>
+          </tbody>
+      </table>
+      <div class="table-subtotal">商品小計: <span id="product-subtotal">0</span> 円</div>
 
-        function render(rows, s = "") {
-            const b = document.getElementById('tbody');
-            const isDetailSearch = document.getElementById('searchAllColumns').checked;
-            b.innerHTML = "";
-            const qs = s.trim().split(/\s+/).filter(q => q !== "");
-            
-            rows.forEach((row, rIdx) => {
-                if (row.join('').trim() === "") return;
-                
-                // 検索判定
-                const match = qs.length === 0 || qs.some(q => {
-                    const searchWord = q.toLowerCase();
-                    // 金額以外のメイン項目を検索
-                    const inMain = mapping.main.some(c => {
-                        if (c.label.includes("金額")) return false; 
-                        return (row[c.i] || "").toLowerCase().includes(searchWord);
-                    });
-                    if (inMain) return true;
-                    
-                    // チェック時のみ詳細項目を検索
-                    if (isDetailSearch) {
-                        return mapping.detail.some(c => (row[c.i] || "").toLowerCase().includes(searchWord));
-                    }
-                    return false;
-                });
-                if (!match) return;
+      <table id="work-tbl">
+          <thead>
+            <tr>
+              <th class="no-border"></th>
+              <th>No</th>
+              <th>コード</th>
+              <th>作業内容</th>
+              <th>JAN</th>
+              <th>バーコード</th>
+              <th>数量</th>
+              <th>単価</th>
+              <th>金額</th>
+              <th class="no-border"></th>
+            </tr>
+          </thead>
+          <tbody id="work-rows">
+              <tr id="work-row-template" class="work-row" style="display: none;">
+                  <td class="no-border work-add-btn-cell"></td>
+                  <td class="work-no row-no"></td>
+                  <td class="work-code"></td>
+                  <td class="work-item" contenteditable="true"></td>
+                  <td class="work-janCode"></td>
+                  <td class="work-barCode"><svg class="barcode-svg"></svg></td>
+                  <td class="work-quantity" contenteditable="true" inputmode="numeric">1</td>
+                  <td class="work-price" contenteditable="true" inputmode="numeric"></td>
+                  <td class="work-lineTotal"></td>
+                  <td class="no-border"><button class="delete-btn-circle delete-work-btn" title="削除">×</button></td>
+              </tr>
+          </tbody>
+      </table>
+      <div class="table-subtotal">作業小計: <span id="work-subtotal">0</span> 円</div>
+  </div>
 
-                // 詳細項目にヒットしているかの判定（アイコン背景色用）
-                const detailMatch = qs.length > 0 && mapping.detail.some(c => {
-                    const cellValue = (row[c.i] || "").toLowerCase();
-                    return qs.some(q => cellValue.includes(q.toLowerCase()));
-                });
+  <div id="posa-section" class="posa-group">
+      <h3>【 会計②：POSAカード（※別会計となります） 】</h3>
+      
+      <table id="posa-tbl">
+          <thead>
+            <tr>
+              <th class="no-border"></th>
+              <th>No</th>
+              <th>型番</th>
+              <th>数量</th>
+              <th>単価</th>
+              <th>金額</th>
+              <th class="no-border"></th>
+            </tr>
+          </thead>
+          <tbody id="posa-rows">
+              <tr id="posa-row-template" class="posa-row" style="display: none;">
+                  <td class="no-border posa-add-btn-cell"></td>
+                  <td class="posa-no row-no"></td>
+                  <td class="posa-type" contenteditable="true"></td>
+                  <td class="posa-quantity" contenteditable="true" inputmode="numeric">1</td>
+                  <td class="posa-price" contenteditable="true" inputmode="numeric"></td>
+                  <td class="posa-lineTotal"></td>
+                  <td class="no-border"><button class="delete-btn-circle delete-posa-btn" title="削除">×</button></td>
+              </tr>
+          </tbody>
+      </table>
+      <div class="table-subtotal">POSA小計: <span id="posa-subtotal">0</span> 円</div>
+  </div>
 
-                const trM = document.createElement('tr');
-                trM.className = 'hover:bg-slate-50';
+  <div class="grand-total-container">
+      <div id="normal-total-display-line" class="subtotal-row" style="display: none;">
+          <span class="label">会計①（商品＋作業）</span>
+          <span class="sub-label">小計:</span>
+          <span class="amount-wrap"><span id="normal-subtotal-display">0</span> 円</span>
+      </div>
+      <div id="posa-total-display-line" class="subtotal-row" style="display: none;">
+          <span class="label">会計②（POSAカード）</span>
+          <span class="sub-label">小計:</span>
+          <span class="amount-wrap"><span id="posa-subtotal-display">0</span> 円</span>
+      </div>
+      <div id="total-divider-line" style="display: none; width: 100%; border-top: 1px solid black; margin: 1px 0;"></div>
+      <div style="font-size: 13px; margin-top: 0px; margin-bottom: 0px; padding-top: 0px; padding-bottom: 0px; width: 100%; text-align: right; line-height: 1.1;">
+          お買上合計: <span id="grand-total">0</span> 円
+      </div>
+  </div>
 
-                const tdI = document.createElement('td');
-                tdI.className = `col-arrow cursor-pointer ${detailMatch ? 'bg-amber-100' : ''}`;
-                tdI.innerHTML = `<span id="ic-${rIdx}" style="transform: rotate(0deg)" class="inline-block transition-transform duration-200 text-[9px]">▶</span>`;
-                tdI.onclick = () => toggleRow(rIdx);
-                trM.appendChild(tdI);
+  <table id="owned-equipment-tbl">
+      <thead>
+          <tr>
+              <th class="no-border"></th>
+              <th>No</th>
+              <th>種類</th>
+              <th>お客様所有の製品型番</th>
+              <th>シリアルナンバー</th>
+              <th class="no-border"></th>
+          </tr>
+      </thead>
+      <tbody id="owned-equipment-tbody">
+          <tr id="owned-equipment-row-template" class="owned-equipment-row" style="display: none;">
+              <td class="no-border owned-add-btn-cell"></td>
+              <td class="owned-no row-no"></td>
+              <td class="owned-equipment-type" contenteditable="true"></td>
+              <td class="product-model-cell" contenteditable="true"></td>
+              <td class="owned-serial-cell" contenteditable="true"></td>
+              <td class="no-border"><button class="delete-btn-circle delete-owned-btn" title="削除">×</button></td>
+          </tr>
+      </tbody>
+  </table>
 
-                mapping.main.forEach(c => {
-                    const td = document.createElement('td');
-                    td.className = c.cls + (c.label.includes("金額") ? " font-bold text-indigo-700" : "") + " cursor-pointer";
-                    // 金額列はハイライトしない
-                    td.innerHTML = c.label.includes("金額") ? (row[c.i] || "") : highlight(row[c.i] || "", qs);
-                    td.onclick = () => toggleRow(rIdx);
-                    trM.appendChild(td);
-                });
+  <div class="no-break-div">
+      <span class="section-title">お客様とのお約束事項(別紙入力)</span>
+      <table class="besshi-tbl">
+          <tr><td contenteditable="true">2Fアシストカウンターにてお渡しいたします。<br><br></td></tr>
+      </table>
+  </div>        
 
-                const tdC = document.createElement('td');
-                tdC.className = 'col-check';
-                const priceMatch = (row[mapping.main.find(m => m.label.includes("金額"))?.i] || "").replace(/[^0-9]/g, '');
-                tdC.innerHTML = `<input type="checkbox" class="row-check" data-price="${priceMatch || 0}" onclick="calcTotal()">`;
-                trM.appendChild(tdC);
+  <div class="no-break-div">
+      <span class="section-title">社内伝達事項</span>
+      <table class="besshi-tbl">
+          <tr><td contenteditable="true">▢初期設定 MSA【▢新規・▢既存(▢outlook.jp・▢その他メール)】 ▢２段階認証【▢お渡し時・▢メール・▢電話】<br>
+              ▢RD作成 ▢Office認証、▢Windowsアップデート ▢メーカーアップデート<br>
+              ウイルス対策(▢VBTS ▢Mcafee ユーザー登録【▢新規MSA・▢既存】)<br>
+              作業担当：▢AC・▢協力店(170)担当(719)</td></tr>
+      </table>
+  </div>
 
-                b.appendChild(trM);
+  <!-- 商品選択モーダル -->
+  <div id="product-modal" class="modal">
+      <div class="modal-content">
+          <div class="modal-header">
+              <h3>商品選択</h3>
+              <button class="close-btn" id="close-modal">&times;</button>
+          </div>
+          <div class="filter-container">
+              <div class="filter-row">
+                  <label>キーワード検索: <input type="search" id="search-keyword" placeholder="型番/インストア"></label>
+              </div>
+              <div class="filter-row">
+                  <span>名称フィルター:</span>
+                  <div id="name-radios"></div>
+              </div>
+          </div>
+          <div class="modal-body">
+              <table id="modal-table">
+                  <thead>
+                      <tr>
+                          <th>名称</th>
+                          <th>メーカー</th>
+                          <th>型番</th>
+                          <th>ｲﾝｽﾄｱｺｰﾄﾞ</th>
+                          <th>ケーズ売価</th>
+                          <th>JANｺｰﾄﾞ</th>
+                          <th>備考</th>
+                      </tr>
+                  </thead>
+                  <tbody id="modal-tbody"></tbody>
+              </table>
+          </div>
+      </div>
+  </div>
 
-                const trD = document.createElement('tr');
-                trD.id = `d-${rIdx}`;
-                trD.className = 'hidden-row';
-                const tdD = document.createElement('td');
-                tdD.colSpan = mapping.main.length + 2;
-                tdD.style.padding = "0";
-                
-                let html = `<div style="width:548px;" class="border-l-4 border-indigo-400 p-3 bg-slate-50 space-y-2">`;
-                mapping.detail.forEach(c => {
-                    html += `<div><div class="text-[9px] font-bold text-indigo-500">${c.label}</div>
-                             <div class="text-[12px] text-slate-700 whitespace-pre-wrap">${highlight(row[c.i] || "---", qs)}</div></div>`;
-                });
-                tdD.innerHTML = html + '</div>';
-                trD.appendChild(tdD);
-                b.appendChild(trD);
-            });
-            document.getElementById('tableContainer').classList.remove('hidden');
-            calcTotal();
-        }
+  <!-- 施策選択モーダル -->
+  <div id="measure-modal" class="modal">
+      <div class="modal-content">
+          <div class="modal-header">
+              <h3>施策選択</h3>
+              <button class="close-btn" id="close-measure-modal">&times;</button>
+          </div>
+          <div class="filter-container">
+              <div class="filter-row">
+                  <label>キーワード検索: <input type="search" id="measure-search-keyword" placeholder="施策名/インストアコード"></label>
+              </div>
+          </div>
+          <div class="modal-body">
+              <table id="measure-modal-table">
+                  <thead>
+                      <tr>
+                          <th>施策名</th>
+                          <th>ｲﾝｽﾄｱｺｰﾄﾞ</th>
+                          <th>JANｺｰﾄﾞ</th>
+                          <th>単価</th>
+                          <th>開始日</th>
+                          <th>終了日</th>
+                      </tr>
+                  </thead>
+                  <tbody id="measure-modal-tbody"></tbody>
+              </table>
+          </div>
+      </div>
+  </div>
 
-        function highlight(t, qs) {
-            if (!qs.length || !t) return t;
-            let h = t;
-            qs.forEach(q => {
-                const re = new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, "gi");
-                h = h.replace(re, '<mark>$1</mark>');
-            });
-            return h;
-        }
+  <!-- サポートメニュー選択モーダル -->
+  <div id="support-modal" class="modal">
+      <div class="modal-content">
+          <div class="modal-header">
+              <h3>サポートメニュー選択</h3>
+              <button class="close-btn" id="close-support-modal">&times;</button>
+          </div>
+          <div class="filter-container">
+              <div class="filter-row">
+                  <label>キーワード検索: <input type="search" id="support-searchInput" placeholder="キーワードで絞り込み..."></label>
+                  <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; font-size: 11px;">
+                      <input type="checkbox" id="support-includeDetailsCheckbox">
+                      <span>詳細を含む</span>
+                  </label>
+              </div>
+              <div id="support-statusMessage" style="font-size: 10px; color: #666;">読み込み中...</div>
+          </div>
+          <div class="modal-body">
+              <table id="support-modal-table" style="width: 100%; border-collapse: collapse;">
+                  <thead id="support-table-header" class="bg-slate-100 text-slate-700 text-xs font-semibold uppercase tracking-wider" style="position: sticky; top: 0;"></thead>
+                  <tbody id="support-modal-tbody" class="divide-y divide-slate-200 bg-white"></tbody>
+              </table>
+          </div>
+      </div>
+  </div>
 
-        function toggleRow(idx) {
-            const d = document.getElementById(`d-${idx}`);
-            const ic = document.getElementById(`ic-${idx}`);
-            if(!d) return;
-            d.classList.toggle('hidden-row');
-            ic.style.transform = d.classList.contains('hidden-row') ? 'rotate(0deg)' : 'rotate(90deg)';
-        }
+  <!-- イベント値引用コンテキストメニュー -->
+  <div id="event-discount-menu" class="custom-context-menu">
+    <div class="menu-header-row">
+      <span>イベント値引き</span>
+      <button class="apply-btn" id="apply-discount-btn">適用</button>
+    </div>
+    <div style="padding: 3px 12px; font-weight: bold; background: #f0f0f0; border-bottom: 1px solid #ccc;">％値引き</div>
+    <div class="menu-item" data-discount-type="percent" data-value="5">5％値引き</div>
+    <div class="menu-item" data-discount-type="percent" data-value="10">10％値引き</div>
+    <div class="menu-separator"></div>
+    <div style="padding: 3px 12px; font-weight: bold; background: #f0f0f0; border-bottom: 1px solid #ccc;">クーポン値引き</div>
+    <div id="coupon-menu-items"></div>
+  </div>
 
-        function calcTotal() {
-            const checks = document.querySelectorAll('.row-check:checked');
-            let total = 0;
-            checks.forEach(c => total += parseInt(c.dataset.price));
-            document.getElementById('totalAmount').textContent = total.toLocaleString();
-        }
+  <!-- 訪問日用隠し日付ピッカー -->
+  <input type="date" id="visit-date-picker" style="display: none; position: absolute;">
 
-        function toggleAllChecks(checked) {
-            document.querySelectorAll('.row-check').forEach(c => c.checked = checked);
-            calcTotal();
-        }
+  <!-- 時間選択モーダル -->
+  <div id="time-modal" class="modal">
+    <div class="modal-content" style="max-width: 300px;">
+      <div class="modal-header">
+        <h3>訪問時間の選択</h3>
+        <button class="close-btn" id="close-time-modal">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 10px;">
+        <select id="time-select" style="width: 100%; padding: 5px; font-size: 14px; border: 1px solid #ccc;">
+          <option value="">時間を選択してください</option>
+          <option value="11時">11時</option>
+          <option value="12時">12時</option>
+          <option value="13時">13時</option>
+          <option value="14時">14時</option>
+          <option value="15時">15時</option>
+          <option value="16時">16時</option>
+          <option value="17時">17時</option>
+          <option value="18時">18時</option>
+          <option value="19時">19時</option>
+        </select>
+        <button id="time-submit-btn" class="apply-btn" style="width: 100%; margin-top: 10px; padding: 6px;">確定</button>
+      </div>
+    </div>
+  </div>
 
-        init();
-    </script>
+  <!-- 機能ごとに分離したJSファイルの読み込み -->
+  <script src="js/calculation.js"></script>
+  <script src="js/table.js"></script>
+  <script src="js/modal.js"></script>
+  <script src="js/set_menu.js"></script>
+  <script src="js/main.js"></script>
 </body>
 </html>
