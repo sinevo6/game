@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>戦国合戦プロトタイプ - iPad対応版</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #12100e; font-family: system-ui, sans-serif; user-select: none; -webkit-user-select: none; touch-action: none; }
+        canvas { display: block; cursor: crosshair; }
+        .hud-panel { background: rgba(20, 18, 16, 0.92); backdrop-filter: blur(8px); border: 1px solid rgba(220, 38, 38, 0.4); }
+        .btn-mode { transition: all 0.2s; }
+        .btn-mode:hover { transform: scale(1.05); }
+        .control-btn { background: rgba(40, 30, 25, 0.8); border: 2px solid rgba(220, 38, 38, 0.6); color: white; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: bold; active: background: rgba(220, 38, 38, 0.6); }
+        .control-btn:active { background: rgba(220, 38, 38, 0.8); transform: scale(0.95); }
+    </style>
+</head>
+<body>
+
+    <!-- モード選択モーダル -->
+    <div id="start-modal" class="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md">
+        <div class="hud-panel p-8 rounded-2xl text-center shadow-2xl max-w-md w-full border border-red-600/60 m-4">
+            <h1 class="text-2xl font-bold text-red-500 mb-2">⚔️ 戦国合戦無双 ⚔️</h1>
+            <p class="text-sm text-gray-300 mb-6">討ち取る敵軍の規模を選択せよ！</p>
+            <div class="grid grid-cols-2 gap-4">
+                <button onclick="startGame(100)" class="btn-mode bg-red-950 hover:bg-red-800 border border-red-600 text-white py-3 px-4 rounded-xl font-bold">100 人<br><span class="text-xs text-gray-400">前哨戦</span></button>
+                <button onclick="startGame(1000)" class="btn-mode bg-red-950 hover:bg-red-800 border border-red-600 text-white py-3 px-4 rounded-xl font-bold">1,000 人<br><span class="text-xs text-gray-400">大部隊戦</span></button>
+                <button onclick="startGame(10000)" class="btn-mode bg-red-900 hover:bg-red-700 border border-red-500 text-white py-3 px-4 rounded-xl font-bold">10,000 人<br><span class="text-xs text-amber-300">大規模合戦</span></button>
+                <button onclick="startGame(100000)" class="btn-mode bg-amber-950 hover:bg-amber-800 border border-amber-500 text-amber-300 py-3 px-4 rounded-xl font-bold">100,000 人<br><span class="text-xs text-amber-400">天下分け目</span></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- HUD -->
+    <div class="absolute top-4 left-4 z-10 flex flex-col gap-3 pointer-events-none">
+        <div class="hud-panel p-4 rounded-xl text-white shadow-2xl w-72 sm:w-80 pointer-events-auto">
+            <h1 class="font-bold text-base sm:text-lg text-red-500 flex items-center gap-2">
+                <span>⚔️</span> 血戦無双・軍勢討伐戦
+            </h1>
+            <div class="mt-3 flex justify-between items-center text-sm border-t border-gray-800 pt-2">
+                <span class="text-gray-300">残り敵兵数:</span>
+                <span id="enemy-count-val" class="font-mono text-xl font-bold text-red-400">1000</span>
+            </div>
+            <div class="mt-1 flex justify-between items-center text-sm">
+                <span class="text-gray-300">撃破数:</span>
+                <span id="score-val" class="font-mono text-lg font-bold text-amber-400">0</span>
+            </div>
+            <div id="combo-display" class="mt-2 text-xs text-amber-300 font-mono">
+                コンボ: 待機中
+            </div>
+            <div id="status-msg" class="mt-2 text-xs text-green-400 bg-green-950/40 p-2 rounded border border-green-900/50">
+                ✅ 合戦開始！敵軍を叩け！
+            </div>
+        </div>
+    </div>
+
+    <!-- タッチ操作用仮想パッド (左側: 移動) -->
+    <div class="absolute bottom-6 left-6 z-20 w-36 h-36 grid grid-cols-3 grid-rows-3 gap-1 select-none">
+        <div></div>
+        <button id="btn-up" class="control-btn rounded-t-xl col-start-2 row-start-1">▲</button>
+        <div></div>
+        <button id="btn-left" class="control-btn rounded-l-xl col-start-1 row-start-2">◀</button>
+        <div class="bg-black/20 rounded-full flex items-center justify-center col-start-2 row-start-2 text-gray-500 text-xs">移動</div>
+        <button id="btn-right" class="control-btn rounded-r-xl col-start-3 row-start-2">▶</button>
+        <div></div>
+        <button id="btn-down" class="control-btn rounded-b-xl col-start-2 row-start-3">▼</button>
+    </div>
+
+    <!-- タッチ操作用アクションボタン (右側: 攻撃) -->
+    <div class="absolute bottom-8 right-8 z-20 select-none">
+        <button id="btn-attack" class="w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-red-900/90 border-4 border-red-600 text-white font-bold text-lg shadow-2xl active:bg-red-700 active:scale-95 transition-all flex flex-col items-center justify-center">
+            <span class="text-2xl">⚔️</span>
+            <span class="text-xs mt-1">斬撃</span>
+        </button>
+    </div>
+
+    <!-- 操作ガイド (PC用) -->
+    <div class="absolute top-4 right-4 z-10 hud-panel p-4 rounded-xl text-white shadow-2xl text-xs space-y-2 hidden lg:block w-72 pointer-events-none">
+        <div class="font-bold text-red-400 mb-1 flex items-center gap-1"><span>⌨️</span> 操作方法 (PC)</div>
+        <div class="flex justify-between items-center py-1 border-b border-gray-800">
+            <span class="text-gray-300">移動</span>
+            <span class="bg-gray-800 px-2 py-0.5 rounded font-mono text-red-300 border border-gray-700">矢印キー / WASD</span>
+        </div>
+        <div class="flex justify-between items-center py-1">
+            <span class="text-gray-300">連続斬撃（コンボ）</span>
+            <span class="bg-gray-800 px-2 py-0.5 rounded font-mono text-red-300 border border-gray-700">左クリック / スペース</span>
+        </div>
+    </div>
+
+    <script>
+        let totalEnemyGoal = 1000;
+        let remainingEnemies = 1000;
+        let defeatCount = 0;
+        let gameStarted = false;
+
+        // 1. シーン・カメラ・レンダラー
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x1a1614);
+        scene.fog = new THREE.FogExp2(0x1a1614, 0.005);
+
+        const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 18, 14);
+        camera.lookAt(0, 1.0, -8);
+        
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        document.body.appendChild(renderer.domElement);
+
+        // 2. ライティング
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+        scene.add(ambientLight);
+
+        const dirLight = new THREE.DirectionalLight(0xffeedd, 1.3);
+        dirLight.position.set(20, 40, 20);
+        dirLight.castShadow = true;
+        scene.add(dirLight);
+
+        // 3. 床とグリッド
+        const planeGeo = new THREE.PlaneGeometry(1200, 1200);
+        const planeMat = new THREE.MeshStandardMaterial({ color: 0x24201c, roughness: 0.9 });
+        const floor = new THREE.Mesh(planeGeo, planeMat);
+        floor.rotation.x = -Math.PI / 2;
+        floor.receiveShadow = true;
+        scene.add(floor);
+
+        const gridHelper = new THREE.GridHelper(1200, 120, 0x442222, 0x332822);
+        gridHelper.position.y = 0.01;
+        scene.add(gridHelper);
+
+        // --- 奥の大軍団（人間モデルのインスタンス） ---
+        function createMassiveHumanArmy() {
+            const armyGroup = new THREE.Group();
+            armyGroup.position.set(0, 0, -380);
+
+            const canvas = document.createElement('canvas');
+            canvas.width = 2048;
+            canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+            const skyGrad = ctx.createLinearGradient(0, 0, 0, 512);
+            skyGrad.addColorStop(0, '#1a0505');
+            skyGrad.addColorStop(0.5, '#451a03');
+            skyGrad.addColorStop(1, '#7c2d12');
+            ctx.fillStyle = skyGrad;
+            ctx.fillRect(0, 0, 2048, 512);
+
+            ctx.fillStyle = '#110c08';
+            ctx.beginPath();
+            ctx.moveTo(0, 512);
+            ctx.lineTo(0, 260);
+            for (let i = 0; i <= 2048; i += 35) {
+                ctx.lineTo(i, 260 + Math.sin(i * 0.007) * 45);
+            }
+            ctx.lineTo(2048, 512);
+            ctx.fill();
+
+            for (let x = 15; x < 2048; x += 18) {
+                const flagHeight = 90 + Math.sin(x * 0.4) * 40;
+                ctx.fillStyle = '#1c1917';
+                ctx.fillRect(x, 280 - flagHeight, 2, flagHeight + 80);
+                ctx.fillStyle = (Math.floor(x / 80) % 2 === 0) ? '#dc2626' : '#991b1b';
+                ctx.beginPath();
+                ctx.moveTo(x + 2, 280 - flagHeight);
+                ctx.lineTo(x + 32, 280 - flagHeight + 12);
+                ctx.lineTo(x + 2, 280 - flagHeight + 36);
+                ctx.fill();
+            }
+
+            const texture = new THREE.CanvasTexture(canvas);
+            const bgMat = new THREE.MeshBasicMaterial({ map: texture, fog: false });
+            const bgGeo = new THREE.PlaneGeometry(900, 200);
+            const bgMesh = new THREE.Mesh(bgGeo, bgMat);
+            bgMesh.position.set(0, 85, 0);
+            armyGroup.add(bgMesh);
+
+            const count = 2500;
+            const bodyMat = new THREE.MeshStandardMaterial({ color: 0x991b1b, roughness: 0.8 });
+            const armorMat = new THREE.MeshStandardMaterial({ color: 0x7f1d1d, roughness: 0.7 });
+            const skinMat = new THREE.MeshStandardMaterial({ color: 0xfde047, roughness: 0.5 });
+
+            const chestMesh = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.25, 0.18, 0.6, 6), armorMat, count);
+            const headMesh = new THREE.InstancedMesh(new THREE.SphereGeometry(0.15, 8, 8), skinMat, count);
+            const helmetMesh = new THREE.InstancedMesh(new THREE.ConeGeometry(0.18, 0.25, 6), bodyMat, count);
+
+            const dummy = new THREE.Object3D();
+            let idx = 0;
+            for (let row = 0; row < 15; row++) {
+                for (let col = 0; col < 166; col++) {
+                    if (idx >= count) break;
+                    const posX = (col - 83) * 3.2 + (row % 2) * 1.6;
+                    const posZ = row * 4.0;
+
+                    dummy.position.set(posX, 0.7, posZ);
+                    dummy.updateMatrix();
+                    chestMesh.setMatrixAt(idx, dummy.matrix);
+
+                    dummy.position.set(posX, 1.25, posZ);
+                    dummy.updateMatrix();
+                    headMesh.setMatrixAt(idx, dummy.matrix);
+
+                    dummy.position.set(posX, 1.45, posZ);
+                    dummy.updateMatrix();
+                    helmetMesh.setMatrixAt(idx, dummy.matrix);
+
+                    idx++;
+                }
+            }
+
+            chestMesh.instanceMatrix.needsUpdate = true;
+            headMesh.instanceMatrix.needsUpdate = true;
+            helmetMesh.instanceMatrix.needsUpdate = true;
+
+            armyGroup.add(chestMesh);
+            armyGroup.add(headMesh);
+            armyGroup.add(helmetMesh);
+
+            scene.add(armyGroup);
+        }
+
+        createMassiveHumanArmy();
+
+        let effects = [];
+        let enemies = [];
+        let corpses = [];
+
+        // --- 人間モデル生成 ---
+        function createArticulatedHumanoid(isPlayer, baseColor = 0x2563eb, bodyType = 'normal') {
+            const root = new THREE.Group();
+
+            let scaleY = 1.0, scaleW = 1.0;
+            if (!isPlayer) {
+                if (bodyType === 'tall_slim') { scaleY = 1.15; scaleW = 0.85; }
+                else if (bodyType === 'short_stocky') { scaleY = 0.9; scaleW = 1.25; }
+            }
+
+            const skinMat = new THREE.MeshStandardMaterial({ color: 0xfde047, roughness: 0.5 });
+            const armorMat = new THREE.MeshStandardMaterial({ color: baseColor, roughness: 0.5 });
+            const darkMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.7 });
+            const jointMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.6 });
+
+            const pelvis = new THREE.Group();
+            pelvis.position.y = 1.0 * scaleY;
+            root.add(pelvis);
+            pelvis.add(new THREE.Mesh(new THREE.BoxGeometry(0.32 * scaleW, 0.18, 0.24 * scaleW), darkMat));
+
+            const abdomen = new THREE.Group();
+            abdomen.position.y = 0.14;
+            pelvis.add(abdomen);
+            const abMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.16 * scaleW, 0.2 * scaleW, 0.28, 8), darkMat);
+            abMesh.position.y = 0.14;
+            abdomen.add(abMesh);
+
+            const chest = new THREE.Group();
+            chest.position.y = 0.32;
+            abdomen.add(chest);
+            const chestMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.3 * scaleW, 0.22 * scaleW, 0.45, 8), armorMat);
+            chestMesh.position.y = 0.22;
+            chestMesh.castShadow = true;
+            chest.add(chestMesh);
+
+            const neck = new THREE.Group();
+            neck.position.y = 0.48;
+            chest.add(neck);
+            const neckMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.08, 0.14, 8), skinMat);
+            neckMesh.position.y = 0.07;
+            neck.add(neckMesh);
+
+            const head = new THREE.Group();
+            head.position.y = 0.15;
+            neck.add(head);
+            const headMesh = new THREE.Mesh(new THREE.SphereGeometry(0.17, 12, 12), skinMat);
+            headMesh.position.y = 0.1;
+            head.add(headMesh);
+            const helmetMesh = new THREE.Mesh(new THREE.ConeGeometry(0.19, 0.28, 8), armorMat);
+            helmetMesh.position.set(0, 0.3, 0);
+            head.add(helmetMesh);
+
+            const leftShoulder = new THREE.Group();
+            leftShoulder.position.set(-0.35 * scaleW, 0.4, 0.05);
+            chest.add(leftShoulder);
+            leftShoulder.rotation.z = -0.25;
+            leftShoulder.rotation.x = 0.3;
+            const leftUA = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.065, 0.4, 6), armorMat);
+            leftUA.position.y = -0.2;
+            leftShoulder.add(leftUA);
+            const leftElbow = new THREE.Group();
+            leftElbow.position.y = -0.4;
+            leftElbow.rotation.x = -0.6;
+            leftShoulder.add(leftElbow);
+            const leftLA = new THREE.Mesh(new THREE.CylinderGeometry(0.065, 0.055, 0.38, 6), skinMat);
+            leftLA.position.y = -0.19;
+            leftElbow.add(leftLA);
+            const leftWrist = new THREE.Group();
+            leftWrist.position.y = -0.38;
+            leftElbow.add(leftWrist);
+            const leftHand = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.12, 0.08), skinMat);
+            leftHand.position.y = -0.06;
+            leftWrist.add(leftHand);
+
+            const rightShoulder = new THREE.Group();
+            rightShoulder.position.set(0.35 * scaleW, 0.4, 0.05);
+            chest.add(rightShoulder);
+            rightShoulder.rotation.z = 0.25;
+            rightShoulder.rotation.x = 0.4;
+            const rightUA = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.065, 0.4, 6), armorMat);
+            rightUA.position.y = -0.2;
+            rightShoulder.add(rightUA);
+            const rightElbow = new THREE.Group();
+            rightElbow.position.y = -0.4;
+            rightElbow.rotation.x = -0.8;
+            rightShoulder.add(rightElbow);
+            const rightLA = new THREE.Mesh(new THREE.CylinderGeometry(0.065, 0.055, 0.38, 6), skinMat);
+            rightLA.position.y = -0.19;
+            rightElbow.add(rightLA);
+            const rightWrist = new THREE.Group();
+            rightWrist.position.y = -0.38;
+            rightElbow.add(rightWrist);
+            const rightHand = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.12, 0.08), skinMat);
+            rightHand.position.y = -0.06;
+            rightWrist.add(rightHand);
+
+            const leftHip = new THREE.Group();
+            leftHip.position.set(-0.13 * scaleW, -0.09, 0);
+            pelvis.add(leftHip);
+            const leftThigh = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.075, 0.65 * scaleY, 6), darkMat);
+            leftThigh.position.set(0, -0.32 * scaleY, 0);
+            leftHip.add(leftThigh);
+            const leftKnee = new THREE.Group();
+            leftKnee.position.set(0, -0.65 * scaleY, 0);
+            leftHip.add(leftKnee);
+            const leftShin = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.06, 0.65 * scaleY, 6), darkMat);
+            leftShin.position.set(0, -0.32 * scaleY, 0);
+            leftKnee.add(leftShin);
+            const leftAnkle = new THREE.Group();
+            leftAnkle.position.set(0, -0.65 * scaleY, 0);
+            leftKnee.add(leftAnkle);
+            const leftFoot = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.08, 0.22), jointMat);
+            leftFoot.position.set(0, -0.04, 0.07);
+            leftAnkle.add(leftFoot);
+
+            const rightHip = new THREE.Group();
+            rightHip.position.set(0.13 * scaleW, -0.09, 0);
+            pelvis.add(rightHip);
+            const rightThigh = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.075, 0.65 * scaleY, 6), darkMat);
+            rightThigh.position.set(0, -0.32 * scaleY, 0);
+            rightHip.add(rightThigh);
+            const rightKnee = new THREE.Group();
+            rightKnee.position.set(0, -0.65 * scaleY, 0);
+            rightHip.add(rightKnee);
+            const rightShin = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.06, 0.65 * scaleY, 6), darkMat);
+            rightShin.position.set(0, -0.32 * scaleY, 0);
+            rightKnee.add(rightShin);
+            const rightAnkle = new THREE.Group();
+            rightAnkle.position.set(0, -0.65 * scaleY, 0);
+            rightKnee.add(rightAnkle);
+            const rightFoot = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.08, 0.22), jointMat);
+            rightFoot.position.set(0, -0.04, 0.07);
+            rightAnkle.add(rightFoot);
+
+            if (isPlayer) {
+                const katanaGroup = new THREE.Group();
+                const hilt = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.5), new THREE.MeshStandardMaterial({ color: 0x111111 }));
+                hilt.position.y = 0.25;
+                katanaGroup.add(hilt);
+                const tsuba = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.015, 12), new THREE.MeshStandardMaterial({ color: 0xd97706, metalness: 0.8 }));
+                tsuba.position.y = 0.5;
+                katanaGroup.add(tsuba);
+                const blade = new THREE.Mesh(new THREE.BoxGeometry(0.035, 1.4, 0.14), new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.95, roughness: 0.1 }));
+                blade.position.set(0, 1.25, 0.04);
+                blade.rotation.x = -0.15;
+                katanaGroup.add(blade);
+                katanaGroup.position.set(0, -0.1, 0.12);
+                katanaGroup.rotation.x = 0.5;
+                rightWrist.add(katanaGroup);
+                root.userData.katana = katanaGroup;
+            } else {
+                const spearGroup = new THREE.Group();
+                const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 2.8), new THREE.MeshStandardMaterial({ color: 0x5c4033 }));
+                pole.position.y = 1.2;
+                spearGroup.add(pole);
+                const spearHead = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.6, 6), new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.9 }));
+                spearHead.position.y = 2.65;
+                spearGroup.add(spearHead);
+                spearGroup.position.set(0, -0.2, 0.15);
+                spearGroup.rotation.x = 0.3;
+                rightWrist.add(spearGroup);
+                root.userData.weapon = spearGroup;
+            }
+
+            root.userData.skeleton = { 
+                pelvis, abdomen, chest, 
+                leftShoulder, rightShoulder, leftElbow, rightElbow, leftWrist, rightWrist, 
+                leftHip, rightHip, leftKnee, rightKnee, leftAnkle, rightAnkle,
+                leftHand
+            };
+
+            return root;
+        }
+
+        const playerGroup = createArticulatedHumanoid(true, 0x2563eb, 'normal');
+        scene.add(playerGroup);
+
+        function startGame(count) {
+            totalEnemyGoal = count;
+            remainingEnemies = count;
+            document.getElementById('enemy-count-val').innerText = remainingEnemies;
+            document.getElementById('start-modal').style.display = 'none';
+            gameStarted = true;
+
+            for (let i = 0; i < 3; i++) {
+                spawnRandomWave();
+            }
+        }
+
+        function spawnRandomWave() {
+            if (remainingEnemies <= 0) return;
+
+            const possibleSizes = [5, 10, 20, 50];
+            const waveSize = Math.min(possibleSizes[Math.floor(Math.random() * possibleSizes.length)], remainingEnemies);
+
+            const startZ = -260 - Math.random() * 50;
+            const groupCenterX = (Math.random() - 0.5) * 160;
+            const bodyTypes = ['normal', 'tall_slim', 'short_stocky'];
+
+            for (let i = 0; i < waveSize; i++) {
+                const bType = bodyTypes[Math.floor(Math.random() * bodyTypes.length)];
+                const enemyMesh = createArticulatedHumanoid(false, 0x991b1b, bType);
+                
+                const squadCol = i % 5;
+                const squadRow = Math.floor(i / 5);
+                const offsetX = groupCenterX + (squadCol - 2) * 2.5;
+                const offsetZ = startZ - squadRow * 3.0;
+
+                enemyMesh.position.set(offsetX, 0, offsetZ);
+                scene.add(enemyMesh);
+
+                enemies.push({
+                    mesh: enemyMesh,
+                    x: offsetX,
+                    z: offsetZ,
+                    baseSpeed: 0.04 + Math.random() * 0.04,
+                    speed: 0.04 + Math.random() * 0.04,
+                    isAlive: true,
+                    attackType: Math.floor(Math.random() * 5),
+                    attackAnimPhase: Math.random() * Math.PI,
+                    walkPhase: Math.random() * Math.PI * 2
+                });
+            }
+        }
+
+        const player = { 
+            x: 0, 
+            z: 0, 
+            speed: 0.25, 
+            angle: 0, 
+            isAttacking: false, 
+            attackTimer: 0,
+            comboStep: 0,
+            comboResetTimer: 0,
+            walkCycle: 0
+        };
+
+        const keys = { up: false, down: false, left: false, right: false };
+
+        // キーボード操作
+        window.addEventListener('keydown', (e) => {
+            if (!gameStarted) return;
+            if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') keys.up = true;
+            if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') keys.down = true;
+            if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys.left = true;
+            if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.right = true;
+            if (e.key === ' ' || e.key === 'Enter') triggerAttack();
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') keys.up = false;
+            if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') keys.down = false;
+            if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys.left = false;
+            if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.right = false;
+        });
+
+        // タッチ操作＆マウス操作バインド
+        function bindTouchButton(elemId, keyName) {
+            const el = document.getElementById(elemId);
+            const pressOn = (e) => { e.preventDefault(); keys[keyName] = true; };
+            const pressOff = (e) => { e.preventDefault(); keys[keyName] = false; };
+            
+            el.addEventListener('touchstart', pressOn, { passive: false });
+            el.addEventListener('touchend', pressOff, { passive: false });
+            el.addEventListener('mousedown', pressOn);
+            el.addEventListener('mouseup', pressOff);
+            el.addEventListener('mouseleave', pressOff);
+        }
+
+        bindTouchButton('btn-up', 'up');
+        bindTouchButton('btn-down', 'down');
+        bindTouchButton('btn-left', 'left');
+        bindTouchButton('btn-right', 'right');
+
+        const attackBtn = document.getElementById('btn-attack');
+        attackBtn.addEventListener('touchstart', (e) => { e.preventDefault(); if (gameStarted) triggerAttack(); }, { passive: false });
+        attackBtn.addEventListener('click', () => { if (gameStarted) triggerAttack(); });
+
+        window.addEventListener('mousedown', (e) => {
+            if (!gameStarted) return;
+            // UI上のクリックでなければ攻撃
+            if (e.target.tagName === 'CANVAS') triggerAttack();
+        });
+
+        function triggerAttack() {
+            if (player.comboResetTimer > 0 && !player.isAttacking) {
+                player.comboStep = (player.comboStep + 1) % 4;
+            } else if (!player.isAttacking) {
+                player.comboStep = 0;
+            }
+
+            if (!player.isAttacking) {
+                player.isAttacking = true;
+                player.attackTimer = 18;
+                player.comboResetTimer = 35;
+
+                const comboNames = [
+                    "一之太刀：右薙ぎ払い", 
+                    "二之太刀：左逆袈裟", 
+                    "三之太刀：唐竹割り（縦斬り）",
+                    "奥義：旋風・円月回転斬り"
+                ];
+                document.getElementById('combo-display').innerText = `コンボ: ${comboNames[player.comboStep]}`;
+
+                const reach = player.comboStep === 3 ? 6.0 : 4.5;
+                
+                enemies.forEach(enemy => {
+                    if (!enemy.isAlive) return;
+                    const dx = enemy.x - player.x;
+                    const dz = enemy.z - player.z;
+                    const dist = Math.sqrt(dx * dx + dz * dz);
+
+                    if (dist < reach) {
+                        enemy.isAlive = false;
+                        defeatCount++;
+                        remainingEnemies = Math.max(0, remainingEnemies - 1);
+                        document.getElementById('score-val').innerText = defeatCount;
+                        document.getElementById('enemy-count-val').innerText = remainingEnemies;
+
+                        if (remainingEnemies === 0) {
+                            document.getElementById('status-msg').innerText = "🏆 大勝利！敵軍を完全に討ち果たした！";
+                        }
+
+                        spawnGoreEffect(enemy.x, 1.0, enemy.z, enemy.mesh.rotation.y);
+
+                        enemy.mesh.position.set(enemy.x, 0.1, enemy.z);
+                        enemy.mesh.rotation.x = (Math.random() - 0.5) * Math.PI;
+                        enemy.mesh.rotation.y = Math.random() * Math.PI * 2;
+                        enemy.mesh.rotation.z = (Math.random() - 0.5) * Math.PI;
+
+                        corpses.push({ mesh: enemy.mesh, age: 0 });
+                    }
+                });
+
+                if (remainingEnemies > 0 && Math.random() < 0.4) {
+                    spawnRandomWave();
+                }
+            }
+        }
+
+        function spawnGoreEffect(x, y, z, rotY) {
+            const bloodMat = new THREE.MeshBasicMaterial({ color: 0x990000 });
+            for (let i = 0; i < 20; i++) {
+                const bGeo = new THREE.SphereGeometry(0.06, 6, 6);
+                const bMesh = new THREE.Mesh(bGeo, bloodMat);
+                bMesh.position.set(x + (Math.random() - 0.5) * 0.8, y + Math.random() * 0.8, z + (Math.random() - 0.5) * 0.8);
+                scene.add(bMesh);
+
+                effects.push({
+                    mesh: bMesh,
+                    vx: (Math.random() - 0.5) * 0.2,
+                    vy: Math.random() * 0.25,
+                    vz: (Math.random() - 0.5) * 0.2,
+                    life: 40
+                });
+            }
+
+            const armGeo = new THREE.CylinderGeometry(0.06, 0.05, 0.4, 6);
+            const armMat = new THREE.MeshStandardMaterial({ color: 0x991b1b });
+            const severedArm = new THREE.Mesh(armGeo, armMat);
+            severedArm.position.set(x, y + 0.5, z);
+            scene.add(severedArm);
+
+            effects.push({
+                mesh: severedArm,
+                vx: Math.sin(rotY) * 0.15 + (Math.random() - 0.5) * 0.1,
+                vy: 0.3,
+                vz: Math.cos(rotY) * 0.15 + (Math.random() - 0.5) * 0.1,
+                rotSpeed: 0.2,
+                life: 60
+            });
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // 7. メインループ
+        function animate() {
+            requestAnimationFrame(animate);
+            if (!gameStarted) return;
+
+            let moveX = 0, moveZ = 0;
+            if (keys.up) moveZ -= 1;
+            if (keys.down) moveZ += 1;
+            if (keys.left) moveX -= 1;
+            if (keys.right) moveX += 1;
+
+            let isMoving = (moveX !== 0 || moveZ !== 0);
+            const pSk = playerGroup.userData.skeleton;
+
+            let enemyNearby = false;
+            enemies.forEach(enemy => {
+                if (enemy.isAlive) {
+                    const dist = Math.hypot(enemy.x - player.x, enemy.z - player.z);
+                    if (dist < 9.0) enemyNearby = true;
+                }
+            });
+
+            if (isMoving) {
+                const len = Math.sqrt(moveX * moveX + moveZ * moveZ);
+                const moveDirX = moveX / len;
+                const moveDirZ = moveZ / len;
+
+                player.x += moveDirX * player.speed;
+                player.z += moveDirZ * player.speed;
+
+                player.angle = Math.atan2(moveDirX, moveDirZ);
+                playerGroup.rotation.y = player.angle;
+
+                player.walkCycle += 0.45;
+
+                pSk.pelvis.position.y = 1.0 + Math.abs(Math.sin(player.walkCycle)) * 0.12;
+                playerGroup.position.x = player.x + Math.sin(player.walkCycle * 0.5) * 0.08;
+
+                if (!player.isAttacking) {
+                    pSk.chest.rotation.x = 0.35;
+                    pSk.abdomen.rotation.x = 0.2;
+                    pSk.chest.rotation.z = Math.sin(player.walkCycle * 0.5) * 0.15;
+                }
+
+                pSk.leftHip.rotation.x = Math.sin(player.walkCycle) * 0.8;
+                pSk.rightHip.rotation.x = -Math.sin(player.walkCycle) * 0.8;
+                pSk.leftKnee.rotation.x = Math.abs(Math.sin(player.walkCycle)) * 0.7;
+                pSk.rightKnee.rotation.x = Math.abs(Math.cos(player.walkCycle)) * 0.7;
+
+                if (!player.isAttacking) {
+                    pSk.leftShoulder.rotation.x = -Math.sin(player.walkCycle) * 0.9;
+                    pSk.rightShoulder.rotation.x = Math.sin(player.walkCycle) * 0.9;
+                    pSk.rightWrist.rotation.y = Math.sin(player.walkCycle) * 0.4;
+                }
+            } else {
+                pSk.pelvis.position.y = THREE.MathUtils.lerp(pSk.pelvis.position.y, enemyNearby ? 0.92 : 1.0, 0.1);
+                playerGroup.position.x = THREE.MathUtils.lerp(playerGroup.position.x, player.x, 0.2);
+
+                if (enemyNearby && !player.isAttacking) {
+                    pSk.leftHip.rotation.z = THREE.MathUtils.lerp(pSk.leftHip.rotation.z, -0.25, 0.1);
+                    pSk.rightHip.rotation.z = THREE.MathUtils.lerp(pSk.rightHip.rotation.z, 0.25, 0.1);
+                    pSk.leftKnee.rotation.x = THREE.MathUtils.lerp(pSk.leftKnee.rotation.x, 0.35, 0.1);
+                    pSk.rightKnee.rotation.x = THREE.MathUtils.lerp(pSk.rightKnee.rotation.x, 0.35, 0.1);
+
+                    pSk.chest.rotation.x = THREE.MathUtils.lerp(pSk.chest.rotation.x, 0.4, 0.1);
+                    pSk.leftShoulder.rotation.x = THREE.MathUtils.lerp(pSk.leftShoulder.rotation.x, -0.5, 0.1);
+                    pSk.leftShoulder.rotation.z = THREE.MathUtils.lerp(pSk.leftShoulder.rotation.z, -0.5, 0.1);
+                    pSk.rightShoulder.rotation.x = THREE.MathUtils.lerp(pSk.rightShoulder.rotation.x, -0.8, 0.1);
+                    pSk.rightShoulder.rotation.z = THREE.MathUtils.lerp(pSk.rightShoulder.rotation.z, 0.4, 0.1);
+                } else {
+                    pSk.leftHip.rotation.z = THREE.MathUtils.lerp(pSk.leftHip.rotation.z, 0, 0.1);
+                    pSk.rightHip.rotation.z = THREE.MathUtils.lerp(pSk.rightHip.rotation.z, 0, 0.1);
+                    pSk.leftHip.rotation.x = THREE.MathUtils.lerp(pSk.leftHip.rotation.x, 0, 0.1);
+                    pSk.rightHip.rotation.x = THREE.MathUtils.lerp(pSk.rightHip.rotation.x, 0, 0.1);
+                    pSk.leftKnee.rotation.x = THREE.MathUtils.lerp(pSk.leftKnee.rotation.x, 0, 0.1);
+                    pSk.rightKnee.rotation.x = THREE.MathUtils.lerp(pSk.rightKnee.rotation.x, 0, 0.1);
+                    pSk.chest.rotation.x = THREE.MathUtils.lerp(pSk.chest.rotation.x, 0, 0.1);
+                    pSk.chest.rotation.z = THREE.MathUtils.lerp(pSk.chest.rotation.z, 0, 0.1);
+                    pSk.abdomen.rotation.x = THREE.MathUtils.lerp(pSk.abdomen.rotation.x, 0, 0.1);
+                }
+            }
+
+            if (player.comboResetTimer > 0) {
+                player.comboResetTimer--;
+                if (player.comboResetTimer === 0) {
+                    document.getElementById('combo-display').innerText = 'コンボ: 待機中';
+                }
+            }
+
+            enemies.forEach((enemy, eIdx) => {
+                if (!enemy.isAlive) return;
+
+                const dirX = player.x - enemy.x;
+                const dirZ = player.z - enemy.z;
+                const actualLen = Math.sqrt(dirX * dirX + dirZ * dirZ);
+
+                let blockPushX = 0, blockPushZ = 0;
+                for (let otherIdx = 0; otherIdx < enemies.length; otherIdx++) {
+                    if (eIdx === otherIdx) continue;
+                    const other = enemies[otherIdx];
+                    if (other.isAlive) {
+                        const odx = enemy.x - other.x;
+                        const odz = enemy.z - other.z;
+                        const odist = Math.sqrt(odx * odx + odz * odz);
+                        if (odist < 1.2 && odist > 0) {
+                            blockPushX += (odx / odist) * 0.06;
+                            blockPushZ += (odz / odist) * 0.06;
+                        }
+                    }
+                }
+
+                let blockedByAlly = false;
+                for (let otherIdx = 0; otherIdx < enemies.length; otherIdx++) {
+                    if (eIdx === otherIdx) continue;
+                    const other = enemies[otherIdx];
+                    if (other.isAlive) {
+                        const distToPlayerSelf = Math.hypot(enemy.x - player.x, enemy.z - player.z);
+                        const distToPlayerOther = Math.hypot(other.x - player.x, other.z - player.z);
+                        if (distToPlayerOther < distToPlayerSelf && Math.hypot(enemy.x - other.x, enemy.z - other.z) < 2.0) {
+                            blockedByAlly = true;
+                        }
+                    }
+                }
+
+                if (actualLen > 2.2 && !blockedByAlly) {
+                    enemy.speed = enemy.baseSpeed;
+                    const eDirX = dirX / actualLen;
+                    const eDirZ = dirZ / actualLen;
+                    enemy.x += eDirX * enemy.speed + blockPushX;
+                    enemy.z += eDirZ * enemy.speed + blockPushZ;
+                    enemy.mesh.rotation.y = Math.atan2(eDirX, eDirZ);
+
+                    enemy.walkPhase += 0.4;
+                    const esk = enemy.mesh.userData.skeleton;
+                    esk.pelvis.position.y = 1.0 + Math.abs(Math.sin(enemy.walkPhase)) * 0.1;
+                    esk.chest.rotation.x = 0.3;
+                    esk.leftHip.rotation.x = Math.sin(enemy.walkPhase) * 0.8;
+                    esk.rightHip.rotation.x = -Math.sin(enemy.walkPhase) * 0.8;
+                    esk.leftKnee.rotation.x = Math.abs(Math.sin(enemy.walkPhase)) * 0.7;
+                    esk.rightKnee.rotation.x = Math.abs(Math.cos(enemy.walkPhase)) * 0.7;
+                    esk.leftShoulder.rotation.x = -Math.sin(enemy.walkPhase) * 1.2;
+                    esk.rightShoulder.rotation.x = Math.sin(enemy.walkPhase) * 1.2;
+                } else {
+                    enemy.speed = 0;
+                    enemy.x += blockPushX;
+                    enemy.z += blockPushZ;
+
+                    enemy.attackAnimPhase += 0.18;
+                    const esk = enemy.mesh.userData.skeleton;
+                    esk.pelvis.position.y = 0.92;
+
+                    if (enemy.attackType === 0) {
+                        esk.chest.rotation.x = 0.5;
+                        esk.rightShoulder.rotation.x = -1.4 + Math.sin(enemy.attackAnimPhase * 1.5) * 0.8;
+                    } else if (enemy.attackType === 1) {
+                        esk.chest.rotation.x = 0.3;
+                        esk.chest.rotation.y = Math.sin(enemy.attackAnimPhase) * 0.5;
+                        esk.rightShoulder.rotation.x = -0.8;
+                        esk.rightShoulder.rotation.z = Math.sin(enemy.attackAnimPhase) * 0.7;
+                    } else if (enemy.attackType === 2) {
+                        esk.chest.rotation.y = -0.4;
+                        esk.leftShoulder.rotation.x = -1.2 + Math.sin(enemy.attackAnimPhase * 2.0) * 0.9;
+                    } else if (enemy.attackType === 3) {
+                        esk.leftHip.rotation.x = -1.0 + Math.sin(enemy.attackAnimPhase * 1.5) * 0.8;
+                        esk.chest.rotation.x = 0.4;
+                    } else {
+                        esk.chest.rotation.x = 0.7;
+                        esk.pelvis.position.y = 0.82;
+                        esk.rightShoulder.rotation.x = -0.6;
+                    }
+
+                    if (enemy.mesh.userData.weapon) {
+                        enemy.mesh.userData.weapon.rotation.x = 0.2 + Math.sin(enemy.attackAnimPhase) * 0.5;
+                    }
+                }
+                enemy.mesh.position.set(enemy.x, 0, enemy.z);
+            });
+
+            for (let i = effects.length - 1; i >= 0; i--) {
+                const fx = effects[i];
+                fx.life--;
+                fx.mesh.position.x += fx.vx;
+                fx.mesh.position.y += fx.vy;
+                fx.mesh.position.z += fx.vz;
+                fx.vy -= 0.015;
+                if (fx.rotSpeed) fx.mesh.rotation.x += fx.rotSpeed;
+
+                if (fx.life <= 0) {
+                    scene.remove(fx.mesh);
+                    effects.splice(i, 1);
+                }
+            }
+
+            for (let i = corpses.length - 1; i >= 0; i--) {
+                const c = corpses[i];
+                c.age++;
+                if (c.age > 3300) {
+                    c.mesh.traverse((child) => {
+                        if (child.material) {
+                            child.material.transparent = true;
+                            child.material.opacity = Math.max(0, 1 - (c.age - 3300) / 300);
+                        }
+                    });
+                }
+                if (c.age > 3600) {
+                    scene.remove(c.mesh);
+                    corpses.splice(i, 1);
+                }
+            }
+
+            if (player.isAttacking) {
+                player.attackTimer--;
+                const progress = (18 - player.attackTimer) / 18;
+
+                if (player.comboStep === 0) {
+                    pSk.abdomen.rotation.y = Math.sin(progress * Math.PI) * 0.8;
+                    pSk.chest.rotation.y = Math.sin(progress * Math.PI) * 0.6;
+                    pSk.rightShoulder.rotation.z = -Math.sin(progress * Math.PI) * 1.5;
+                    pSk.rightWrist.rotation.y = Math.sin(progress * Math.PI) * 1.0;
+                } else if (player.comboStep === 1) {
+                    pSk.abdomen.rotation.y = -Math.sin(progress * Math.PI) * 0.8;
+                    pSk.chest.rotation.y = -Math.sin(progress * Math.PI) * 0.6;
+                    pSk.rightShoulder.rotation.z = Math.sin(progress * Math.PI) * 1.5;
+                    pSk.rightWrist.rotation.y = -Math.sin(progress * Math.PI) * 1.0;
+                } else if (player.comboStep === 2) {
+                    pSk.abdomen.rotation.x = -0.3 + Math.sin(progress * Math.PI) * 0.7;
+                    pSk.chest.rotation.x = -0.3 + Math.sin(progress * Math.PI) * 0.7;
+                    pSk.rightShoulder.rotation.x = -Math.sin(progress * Math.PI) * 2.2;
+                } else {
+                    playerGroup.rotation.y = player.angle + progress * Math.PI * 2;
+                    pSk.chest.rotation.y = Math.sin(progress * Math.PI * 2) * 1.2;
+                    pSk.rightShoulder.rotation.z = -1.5;
+                }
+
+                if (player.attackTimer <= 0) {
+                    player.isAttacking = false;
+                    playerGroup.rotation.y = player.angle;
+                    pSk.abdomen.rotation.set(0, 0, 0);
+                    pSk.chest.rotation.set(0, 0, 0);
+                    pSk.rightShoulder.rotation.set(0.4, 0, 0.3);
+                    pSk.rightElbow.rotation.set(-0.7, 0, 0);
+                    pSk.rightWrist.rotation.set(0, 0, 0);
+                }
+            }
+
+            playerGroup.position.z = player.z;
+
+            camera.position.set(player.x, 16, player.z + 14);
+            camera.lookAt(player.x, 1.0, player.z - 12);
+
+            renderer.render(scene, camera);
+        }
+
+        animate();
+    </script>
+</body>
+</html>
