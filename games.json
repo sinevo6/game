@@ -1,1 +1,9 @@
-
+[
+  {
+    "id": "sansu_invader",
+    "title": "さんすうインベーダー！",
+    "description": "インベーダーを倒しながら足し算の練習！",
+    "icon": "🚀",
+    "path": "game1/index.html"
+  }
+]
