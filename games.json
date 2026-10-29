@@ -5,14 +5,12 @@
     "description": "インベーダーを倒しながら足し算の練習！",
     "icon": "🚀",
     "path": "game1/index.html"
-  }
-]
-[
+  },
   {
     "id": "sengoku",
     "title": "戦国合戦無双",
     "description": "群がる敵を薙ぎ払え！",
-    "icon": "卍",
+    "icon": "⚔️",
     "path": "game2/index.html"
   }
 ]
