@@ -1,0 +1,1159 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>さんすうインベーダー！ 〜ぼう衛大作戦〜</title>
+    <style>
+        :root {
+            --primary-color: #ff6b6b;
+            --secondary-color: #4ecdc4;
+            --accent-color: #ffe66d;
+            --bg-color: #0f0f1a;
+            --text-color: #ffffff;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            font-family: 'Hiragino Kaku Gothic ProN', 'メイリオ', sans-serif;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        #app-container {
+            width: 100%;
+            max-width: 480px;
+            height: 100vh;
+            max-height: 850px;
+            background: linear-gradient(180deg, #16213e 0%, #1a1a2e 100%);
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+            border: 2px solid #0f3460;
+        }
+
+        header {
+            background: rgba(15, 52, 96, 0.9);
+            padding: 10px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            border-bottom: 2px solid #e94560;
+            z-index: 10;
+        }
+
+        .user-profile-summary {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .avatar-mini {
+            width: 38px;
+            height: 38px;
+            background: #ffffff;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 20px;
+            border: 2px solid var(--accent-color);
+        }
+
+        .user-info {
+            flex-grow: 1;
+            margin-left: 10px;
+        }
+
+        .title-badge {
+            font-size: 10px;
+            background: rgba(233, 69, 96, 0.4);
+            padding: 2px 8px;
+            border-radius: 10px;
+            display: inline-block;
+            font-weight: bold;
+            color: #ff8787;
+        }
+
+        .level-text {
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .status-bars {
+            display: flex;
+            gap: 10px;
+        }
+
+        .bar-wrapper {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .bar-label {
+            font-size: 10px;
+            color: #aaa;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .bar-container {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.2);
+            height: 8px;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .bar-fill {
+            height: 100%;
+            width: 100%;
+            transition: width 0.3s ease;
+        }
+
+        #hp-bar { background: #ff4757; }
+        #exp-bar { background: var(--accent-color); }
+
+        .stage-status-bar {
+            display: flex;
+            justify-content: space-between;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: bold;
+            color: #ffe66d;
+        }
+
+        .view {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        #game-view {
+            padding: 10px;
+            justify-content: space-between;
+        }
+
+        .battle-field {
+            flex-grow: 1;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 12px;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .enemy-unit {
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transition: left 0.2s linear;
+            cursor: pointer;
+            will-change: top, left, transform;
+        }
+
+        .enemy-avatar {
+            font-size: 32px;
+        }
+
+        .enemy-bubble {
+            background: #ffffff;
+            color: #1a1a2e;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 800;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+            border: 2px solid #e94560;
+            margin-bottom: 2px;
+            white-space: nowrap;
+        }
+
+        .enemy-unit.target .enemy-bubble {
+            background: var(--accent-color);
+            border-color: #ff6b6b;
+            transform: scale(1.15);
+            box-shadow: 0 0 12px var(--accent-color);
+        }
+
+        .enemy-unit.target .enemy-avatar {
+            animation: bounceTarget 0.6s infinite alternate ease-in-out;
+        }
+
+        @keyframes bounceTarget {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(-6px); }
+        }
+
+        .player-area {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            z-index: 5;
+        }
+
+        .main-avatar {
+            font-size: 55px;
+            filter: drop-shadow(0 0 8px rgba(78, 205, 196, 0.6));
+            transition: transform 0.1s;
+        }
+
+        .main-avatar.hit {
+            animation: shake 0.3s ease-in-out;
+            filter: drop-shadow(0 0 15px #ff4757);
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0) scale(1); }
+            20% { transform: translateX(-10px) scale(1.1) rotate(-8deg); }
+            40% { transform: translateX(10px) scale(1.1) rotate(8deg); }
+            60% { transform: translateX(-8px) scale(1.1) rotate(-5deg); }
+            80% { transform: translateX(8px) scale(1.1) rotate(5deg); }
+        }
+
+        .beam {
+            position: absolute;
+            bottom: 50px;
+            width: 6px;
+            height: 0px;
+            background: #ffeb3b;
+            box-shadow: 0 0 10px #ffeb3b, 0 0 20px #ff9800;
+            transition: height 0.1s ease, bottom 0.1s ease;
+            opacity: 0;
+            border-radius: 3px;
+        }
+
+        .beam.shoot {
+            height: 350px;
+            opacity: 1;
+        }
+
+        .control-panel {
+            background: rgba(15, 52, 96, 0.8);
+            padding: 8px;
+            border-radius: 12px;
+            backdrop-filter: blur(5px);
+        }
+
+        .answer-screen {
+            background: #0f0f1a;
+            border: 2px solid #4ecdc4;
+            border-radius: 8px;
+            height: 40px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 26px;
+            color: var(--accent-color);
+            margin-bottom: 8px;
+            font-weight: bold;
+            transition: border-color 0.2s, background-color 0.2s;
+        }
+
+        .answer-screen.wrong {
+            border-color: #ff4757;
+            background-color: rgba(255, 71, 87, 0.2);
+        }
+
+        .numpad {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+        }
+
+        .btn-num {
+            background: #1f4068;
+            border: none;
+            border-bottom: 3px solid #162447;
+            border-radius: 6px;
+            font-size: 20px;
+            font-weight: bold;
+            padding: 8px 0;
+            color: white;
+            cursor: pointer;
+        }
+
+        .btn-num:active {
+            border-bottom-width: 1px;
+            transform: translateY(2px);
+        }
+
+        .btn-action { background: #e94560; }
+        .btn-submit {
+            background: #0f3460;
+            color: #4ecdc4;
+            border: 2px solid #4ecdc4;
+        }
+
+        .level-select-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 15px;
+        }
+
+        .btn-level-select {
+            background: #1f4068;
+            border: 2px solid #4ecdc4;
+            color: white;
+            padding: 12px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .btn-level-select:hover {
+            background: #0f3460;
+            border-color: var(--accent-color);
+            transform: scale(1.02);
+        }
+
+        .btn-level-select .sub-text {
+            font-size: 11px;
+            color: #aaa;
+            font-weight: normal;
+        }
+
+        .sub-view {
+            padding: 16px;
+            overflow-y: auto;
+        }
+
+        .section-title {
+            font-size: 15px;
+            font-weight: bold;
+            margin: 10px 0 6px 0;
+            color: #4ecdc4;
+        }
+
+        .grid-selector {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .item-card {
+            background: #1f4068;
+            border: 2px solid #162447;
+            border-radius: 10px;
+            aspect-ratio: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-size: 26px;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .item-card.selected {
+            border-color: var(--accent-color);
+            background: #0f3460;
+        }
+
+        .item-card.locked {
+            opacity: 0.3;
+            filter: grayscale(100%);
+        }
+
+        .lock-icon {
+            position: absolute;
+            font-size: 10px;
+            bottom: 2px;
+            right: 2px;
+        }
+
+        .title-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .title-item {
+            background: #1f4068;
+            border: 1px solid #162447;
+            padding: 10px 12px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .title-item.unlocked {
+            border-left: 5px solid var(--secondary-color);
+            background: #162447;
+        }
+
+        .title-item.locked { opacity: 0.4; }
+
+        nav {
+            display: flex;
+            background: #0f0f1a;
+            border-top: 1px solid #1f4068;
+            height: 55px;
+            flex-shrink: 0;
+        }
+
+        .nav-btn {
+            flex: 1;
+            border: none;
+            background: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-size: 10px;
+            color: #8888aa;
+            cursor: pointer;
+        }
+
+        .nav-btn.active {
+            color: var(--accent-color);
+            font-weight: bold;
+        }
+
+        .nav-btn span { font-size: 18px; margin-bottom: 2px; }
+
+        .modal {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: #162447;
+            border: 2px solid var(--accent-color);
+            border-radius: 16px;
+            padding: 24px;
+            width: 85%;
+            text-align: center;
+        }
+
+        .modal-btn {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 15px;
+            font-size: 16px;
+            font-weight: bold;
+            margin-top: 16px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+<div id="app-container">
+    <header>
+        <div class="user-profile-summary">
+            <div class="avatar-mini" id="header-avatar">🐱</div>
+            <div class="user-info">
+                <div class="title-badge" id="user-title">みならい</div>
+                <div class="level-text">Lv.<span id="user-level">1</span> (スコア: <span id="score-val">0</span>)</div>
+            </div>
+            <button onclick="showStartLevelSelect()" style="background:#0f3460; border:1px solid #4ecdc4; color:#4ecdc4; border-radius:8px; padding:4px 8px; font-size:11px; cursor:pointer;">難易度変更</button>
+        </div>
+        
+        <div class="stage-status-bar">
+            <div>⏱️ のこり時間: <span id="time-left">180</span>秒</div>
+            <div>🎯 のこり: <span id="questions-left">20</span>問</div>
+        </div>
+
+        <div class="status-bars">
+            <div class="bar-wrapper">
+                <div class="bar-label">
+                    <span>HP</span>
+                    <span><span id="hp-text">5</span>/5</span>
+                </div>
+                <div class="bar-container"><div class="bar-fill" id="hp-bar"></div></div>
+            </div>
+            <div class="bar-wrapper">
+                <div class="bar-label">
+                    <span>けいけんち</span>
+                    <span><span id="exp-text">0/100</span></span>
+                </div>
+                <div class="bar-container"><div class="bar-fill" id="exp-bar"></div></div>
+            </div>
+        </div>
+    </header>
+
+    <!-- 1. ゲーム画面 -->
+    <div id="game-view" class="view">
+        <div class="battle-field" id="battle-field">
+            <div id="enemies-container" style="position: absolute; width: 100%; height: 100%; top: 0; left: 0; pointer-events: none;"></div>
+
+            <div class="player-area" id="player-area">
+                <div class="beam" id="player-beam"></div>
+                <div class="main-avatar" id="game-avatar">🐱</div>
+            </div>
+        </div>
+
+        <div class="control-panel">
+            <div class="answer-screen" id="answer-input"></div>
+            <!-- 電卓・テンキー配列 (7, 8, 9 が最上段) -->
+            <div class="numpad">
+                <button class="btn-num" onclick="pressNum(7)">7</button>
+                <button class="btn-num" onclick="pressNum(8)">8</button>
+                <button class="btn-num" onclick="pressNum(9)">9</button>
+
+                <button class="btn-num" onclick="pressNum(4)">4</button>
+                <button class="btn-num" onclick="pressNum(5)">5</button>
+                <button class="btn-num" onclick="pressNum(6)">6</button>
+
+                <button class="btn-num" onclick="pressNum(1)">1</button>
+                <button class="btn-num" onclick="pressNum(2)">2</button>
+                <button class="btn-num" onclick="pressNum(3)">3</button>
+
+                <button class="btn-num btn-action" onclick="clearAnswer()">けす</button>
+                <button class="btn-num" onclick="pressNum(0)">0</button>
+                <button class="btn-num btn-submit" onclick="checkAnswer()">はっしゃ！</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. きせかえ画面 -->
+    <div id="dressup-view" class="view sub-view hidden">
+        <div style="text-align: center; margin: 6px 0;">
+            <div class="main-avatar" id="dressup-avatar" style="font-size: 70px;">🐱</div>
+        </div>
+        <div class="section-title">ベースキャラ</div>
+        <div class="grid-selector" id="base-selector"></div>
+        <div class="section-title">あたま（アクセサリー）</div>
+        <div class="grid-selector" id="acc-selector"></div>
+    </div>
+
+    <!-- 3. 称号画面 -->
+    <div id="collection-view" class="view sub-view hidden">
+        <div class="section-title">しょうごう（階級）</div>
+        <div class="title-list" id="title-list"></div>
+    </div>
+
+    <nav>
+        <button class="nav-btn active" id="nav-game" onclick="switchView('game')"><span>🚀</span>ばとる</button>
+        <button class="nav-btn" id="nav-dressup" onclick="switchView('dressup')"><span>🎀</span>きせかえ</button>
+        <button class="nav-btn" id="nav-collection" onclick="switchView('collection')"><span>👑</span>しょうごう</button>
+    </nav>
+
+    <!-- モーダルダイアログ -->
+    <div id="modal" class="modal hidden">
+        <div class="modal-content">
+            <h2 id="modal-title" style="color: var(--accent-color); margin-top:0;">タイトル</h2>
+            <div id="modal-body" style="font-size: 15px; margin: 12px 0;"></div>
+            <button class="modal-btn" id="modal-ok-btn" onclick="closeModal()">OK!</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const TOTAL_QUESTIONS_PER_STAGE = 20;
+    const STAGE_TIME_LIMIT = 180;
+
+    let state = {
+        level: 1,
+        stageDifficulty: 1,
+        exp: 0,
+        maxExp: 100,
+        hp: 5,
+        maxHp: 5,
+        score: 0,
+        currentBase: '🐱',
+        currentAcc: '',
+        currentAnswer: '',
+        enemies: [],
+        isPaused: true,
+        timeLeft: STAGE_TIME_LIMIT,
+        questionsLeft: TOTAL_QUESTIONS_PER_STAGE,
+        defeatedCount: 0,
+        spawnedCount: 0,
+        currentSpeed: 0.05
+    };
+
+    const BASES = [
+        { icon: '🐱', reqLevel: 1 },
+        { icon: '🐰', reqLevel: 1 },
+        { icon: '🐻', reqLevel: 3 },
+        { icon: '🦊', reqLevel: 5 },
+        { icon: '🦄', reqLevel: 8 },
+        { icon: '👑🐱', reqLevel: 12 }
+    ];
+
+    const ACCS = [
+        { icon: '', name: 'なし', reqLevel: 1 },
+        { icon: '🎀', name: 'リボン', reqLevel: 2 },
+        { icon: '🎩', name: 'シルクハット', reqLevel: 4 },
+        { icon: '👑', name: 'かんむり', reqLevel: 6 },
+        { icon: '🌸', name: 'おはな', reqLevel: 7 },
+        { icon: '👓', name: 'めがね', reqLevel: 10 }
+    ];
+
+    const TITLES = [
+        { level: 1, name: 'たしざんの みならい' },
+        { level: 3, name: 'たしざんの しゅぎょうちゅう' },
+        { level: 5, name: 'たしざんの はかせ' },
+        { level: 8, name: 'たしざんの まほうつかい' },
+        { level: 10, name: 'たしざんの マスター' },
+        { level: 15, name: 'さんすうの かみさま' }
+    ];
+
+    const ENEMY_ICONS = ['👾', '🛸', '🤖', '👻', '🐉'];
+
+    let gameLoopTimer = null;
+    let clockTimer = null;
+
+    function init() {
+        loadData();
+        renderDressupGrid();
+        renderTitleList();
+        setupKeyboardInput();
+        showStartLevelSelect();
+    }
+
+    function setupKeyboardInput() {
+        window.addEventListener('keydown', (e) => {
+            if (state.isPaused) {
+                if (e.key === 'Enter') {
+                    const modal = document.getElementById('modal');
+                    if (!modal.classList.contains('hidden')) {
+                        closeModal();
+                    }
+                }
+                return;
+            }
+
+            if (e.key >= '0' && e.key <= '9') {
+                pressNum(parseInt(e.key, 10));
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                checkAnswer();
+            } else if (e.key === 'Backspace' || e.key === 'Delete' || e.key === 'Escape' || e.key === 'Clear') {
+                e.preventDefault();
+                clearAnswer();
+            }
+        });
+    }
+
+    function showStartLevelSelect() {
+        state.isPaused = true;
+        if (clockTimer) clearInterval(clockTimer);
+        const html = `
+            <div>あそぶ問題の むずかしさを えらんでね！</div>
+            <div class="level-select-container">
+                <button class="btn-level-select" onclick="selectStartLevel(1)">
+                    <span>🌱 かんたん</span>
+                    <span class="sub-text">1けたの たしざん (答えが最大10まで)</span>
+                </button>
+                <button class="btn-level-select" onclick="selectStartLevel(2)">
+                    <span>⭐ ふつう</span>
+                    <span class="sub-text">ちょっとむずかしい たしざん</span>
+                </button>
+                <button class="btn-level-select" onclick="selectStartLevel(3)">
+                    <span>🔥 むずかしい</span>
+                    <span class="sub-text">くりあがりのある たしざん</span>
+                </button>
+            </div>
+        `;
+        showModal('問題難易度の選択', html, null, true);
+    }
+
+    function selectStartLevel(selectedDiff) {
+        state.stageDifficulty = selectedDiff;
+        closeModal();
+        startNewGame();
+    }
+
+    function startNewGame() {
+        state.hp = state.maxHp;
+        state.score = 0;
+        state.enemies = [];
+        state.currentAnswer = '';
+        state.timeLeft = STAGE_TIME_LIMIT;
+        state.questionsLeft = TOTAL_QUESTIONS_PER_STAGE;
+        state.defeatedCount = 0;
+        state.spawnedCount = 0;
+        state.currentSpeed = 0.05;
+        updateAnswerDisplay();
+
+        for (let i = 0; i < 3; i++) {
+            spawnEnemy(true);
+        }
+        
+        state.isPaused = false;
+        updateUI();
+
+        if (gameLoopTimer) clearInterval(gameLoopTimer);
+        if (clockTimer) clearInterval(clockTimer);
+
+        gameLoopTimer = setInterval(gameLoop, 50);
+        clockTimer = setInterval(updateClock, 1000);
+    }
+
+    function updateClock() {
+        if (state.isPaused) return;
+        state.timeLeft--;
+        if (state.timeLeft <= 0) {
+            state.timeLeft = 0;
+            updateUI();
+            finishStage(false);
+        } else {
+            updateUI();
+        }
+    }
+
+    function saveData() {
+        localStorage.setItem('sansu_invader_data', JSON.stringify({
+            level: state.level,
+            exp: state.exp,
+            maxExp: state.maxExp,
+            maxHp: state.maxHp,
+            currentBase: state.currentBase,
+            currentAcc: state.currentAcc
+        }));
+    }
+
+    function loadData() {
+        const saved = localStorage.getItem('sansu_invader_data');
+        if (saved) {
+            const data = JSON.parse(saved);
+            state.level = data.level || 1;
+            state.exp = data.exp || 0;
+            state.maxExp = data.maxExp || 100;
+            state.maxHp = data.maxHp || 5;
+            state.currentBase = data.currentBase || '🐱';
+            state.currentAcc = data.currentAcc || '';
+        }
+    }
+
+    function generateProblem() {
+        let n1, n2;
+        if (state.stageDifficulty === 1) {
+            const ans = Math.floor(Math.random() * 9) + 2;
+            n1 = Math.floor(Math.random() * (ans - 1)) + 1;
+            n2 = ans - n1;
+        } else if (state.stageDifficulty === 2) {
+            n1 = Math.floor(Math.random() * 5) + 3;
+            n2 = Math.floor(Math.random() * 5) + 2;
+        } else {
+            n1 = Math.floor(Math.random() * 4) + 6;
+            n2 = Math.floor(Math.random() * 4) + 6;
+        }
+        return { num1: n1, num2: n2, answer: n1 + n2 };
+    }
+
+    function spawnEnemy(isInitial = false) {
+        if (state.spawnedCount >= TOTAL_QUESTIONS_PER_STAGE) return;
+
+        state.spawnedCount++;
+        const prob = generateProblem();
+        const icon = ENEMY_ICONS[Math.floor(Math.random() * ENEMY_ICONS.length)];
+        const randomX = 15 + Math.random() * 60;
+        const initialY = isInitial ? (Math.random() * 15 + 1) : 1;
+
+        state.enemies.push({
+            id: Date.now() + Math.random(),
+            icon: icon,
+            num1: prob.num1,
+            num2: prob.num2,
+            answer: prob.answer,
+            x: randomX,
+            y: initialY
+        });
+    }
+
+    function gameLoop() {
+        if (state.isPaused || state.enemies.length === 0) return;
+
+        const collisionThresholdPercent = 82;
+
+        for (let i = 0; i < state.enemies.length; i++) {
+            state.enemies[i].y += state.currentSpeed;
+
+            if (state.enemies[i].y >= collisionThresholdPercent) {
+                state.hp -= 1;
+                triggerHitEffect();
+
+                state.enemies.splice(i, 1);
+                spawnEnemy();
+
+                if (state.hp <= 0) {
+                    gameOver();
+                    return;
+                }
+                break;
+            }
+        }
+        updateUI();
+    }
+
+    function getFrontEnemyIndex() {
+        if (state.enemies.length === 0) return -1;
+        let frontIdx = 0;
+        let maxY = -1;
+        for (let i = 0; i < state.enemies.length; i++) {
+            if (state.enemies[i].y > maxY) {
+                maxY = state.enemies[i].y;
+                frontIdx = i;
+            }
+        }
+        return frontIdx;
+    }
+
+    function triggerHitEffect() {
+        const avatar = document.getElementById('game-avatar');
+        avatar.classList.add('hit');
+        setTimeout(() => { avatar.classList.remove('hit'); }, 300);
+
+        const container = document.getElementById('game-view');
+        container.style.backgroundColor = 'rgba(255, 71, 87, 0.35)';
+        setTimeout(() => { container.style.backgroundColor = ''; }, 250);
+    }
+
+    function updateUI() {
+        document.getElementById('user-level').innerText = state.level;
+        document.getElementById('user-title').innerText = getCurrentTitle();
+        document.getElementById('score-val').innerText = state.score;
+        document.getElementById('hp-text').innerText = state.hp;
+        document.getElementById('time-left').innerText = state.timeLeft;
+        
+        const displayQuestionsLeft = Math.max(0, TOTAL_QUESTIONS_PER_STAGE - state.defeatedCount);
+        document.getElementById('questions-left').innerText = displayQuestionsLeft;
+
+        const hpPercent = Math.max(0, (state.hp / state.maxHp) * 100);
+        document.getElementById('hp-bar').style.width = `${hpPercent}%`;
+
+        const expPercent = Math.min((state.exp / state.maxExp) * 100, 100);
+        document.getElementById('exp-bar').style.width = `${expPercent}%`;
+        document.getElementById('exp-text').innerText = `${state.exp}/${state.maxExp}`;
+
+        const combinedAvatar = state.currentAcc + state.currentBase;
+        document.getElementById('header-avatar').innerText = combinedAvatar;
+        document.getElementById('game-avatar').innerText = combinedAvatar;
+        document.getElementById('dressup-avatar').innerText = combinedAvatar;
+
+        renderEnemies();
+    }
+
+    function renderEnemies() {
+        const container = document.getElementById('enemies-container');
+        container.innerHTML = '';
+
+        const targetIdx = getFrontEnemyIndex();
+
+        state.enemies.forEach((enemy, index) => {
+            const unit = document.createElement('div');
+            const isTarget = index === targetIdx;
+            
+            unit.className = `enemy-unit ${isTarget ? 'target' : ''}`;
+            unit.style.left = `${enemy.x}%`;
+            unit.style.top = `${enemy.y}%`;
+            
+            const scale = 0.65 + (enemy.y / 110);
+            unit.style.transform = `translate(-50%, 0) scale(${Math.min(scale, 1.25)})`;
+            
+            const baseZ = Math.floor(enemy.y * 10);
+            unit.style.zIndex = isTarget ? (baseZ + 500) : baseZ;
+
+            unit.innerHTML = `
+                <div class="enemy-bubble">${enemy.num1} + ${enemy.num2} = ?</div>
+                <div class="enemy-avatar">${enemy.icon}</div>
+            `;
+            
+            container.appendChild(unit);
+        });
+    }
+
+    function getCurrentTitle() {
+        let currentTitle = TITLES[0].name;
+        for (let t of TITLES) {
+            if (state.level >= t.level) currentTitle = t.name;
+        }
+        return currentTitle;
+    }
+
+    function pressNum(num) {
+        if (state.isPaused) return;
+        if (state.currentAnswer.length < 3) {
+            state.currentAnswer += num.toString();
+            updateAnswerDisplay();
+        }
+    }
+
+    function clearAnswer() {
+        if (state.isPaused) return;
+        state.currentAnswer = '';
+        updateAnswerDisplay();
+    }
+
+    function updateAnswerDisplay() {
+        document.getElementById('answer-input').innerText = state.currentAnswer;
+    }
+
+    function checkAnswer() {
+        if (state.isPaused || !state.currentAnswer || state.enemies.length === 0) return;
+
+        const frontIdx = getFrontEnemyIndex();
+        if (frontIdx === -1) return;
+
+        const targetEnemy = state.enemies[frontIdx];
+        const isCorrect = parseInt(state.currentAnswer) === targetEnemy.answer;
+
+        if (isCorrect) {
+            const beam = document.getElementById('player-beam');
+            beam.classList.add('shoot');
+            setTimeout(() => { beam.classList.remove('shoot'); }, 120);
+
+            state.score += 100;
+            state.defeatedCount++;
+
+            state.currentSpeed = Math.min(state.currentSpeed + 0.008, 0.25);
+
+            state.enemies.splice(frontIdx, 1);
+            
+            if (state.defeatedCount >= TOTAL_QUESTIONS_PER_STAGE && state.enemies.length === 0) {
+                clearAnswer();
+                updateUI();
+                finishStage(true);
+                return;
+            }
+
+            spawnEnemy();
+            clearAnswer();
+        } else {
+            state.hp -= 1;
+            triggerHitEffect();
+
+            const screen = document.getElementById('answer-input');
+            screen.classList.add('wrong');
+            setTimeout(() => { screen.classList.remove('wrong'); }, 300);
+
+            clearAnswer();
+
+            if (state.hp <= 0) {
+                gameOver();
+                return;
+            }
+        }
+        updateUI();
+    }
+
+    function finishStage(isAllCleared) {
+        state.isPaused = true;
+        if (clockTimer) clearInterval(clockTimer);
+
+        let gainedExp = 0;
+        let resultTitle = '';
+        let bodyHtml = '';
+
+        if (isAllCleared) {
+            const baseExp = 15 + (state.stageDifficulty * 5); 
+            const timeBonus = Math.floor(state.timeLeft * 0.1);
+            gainedExp = baseExp + timeBonus;
+
+            resultTitle = '🎉 ステージクリア！';
+            bodyHtml = `
+                <div style="font-size:16px; font-weight:bold; color:var(--accent-color); margin-bottom:8px;">
+                    ぜんぶの もんだいを たおしたよ！
+                </div>
+                <div style="text-align:left; background:rgba(0,0,0,0.3); padding:10px; border-radius:8px; line-height:1.6;">
+                    🎯 たおした敵: <b>${state.defeatedCount} / ${TOTAL_QUESTIONS_PER_STAGE}問</b><br>
+                    ⏱️ のこり時間: <b>${state.timeLeft}秒</b><br>
+                    ⭐ クリア経験値: <b>+${baseExp}</b><br>
+                    ⚡ タイムボーナス: <b>+${timeBonus}</b><br>
+                    <hr style="border:0; border-top:1px solid #444;">
+                    🌟 合計獲得経験値: <b style="color:var(--accent-color); font-size:18px;">+${gainedExp}</b>
+                </div>
+            `;
+            const levelUpMsg = processExpAndLevelUp(gainedExp);
+            if (levelUpMsg) {
+                bodyHtml += `<div style="margin-top:10px; font-weight:bold; color:#ffe66d;">${levelUpMsg}</div>`;
+            }
+        } else {
+            resultTitle = '⏱️ タイムアップ！';
+            bodyHtml = `
+                <div style="font-size:16px; font-weight:bold; color:#ff8787; margin-bottom:8px;">
+                    じかんぎれになっちゃった…！
+                </div>
+                <div style="text-align:left; background:rgba(0,0,0,0.3); padding:10px; border-radius:8px; line-height:1.6;">
+                    🎯 たおした敵: <b>${state.defeatedCount} / ${TOTAL_QUESTIONS_PER_STAGE}問</b><br>
+                    ⚠️ ステージ未クリアのため経験値はかくとくできません。
+                </div>
+            `;
+        }
+
+        showModal(resultTitle, bodyHtml, () => {
+            showStartLevelSelect();
+        });
+    }
+
+    function processExpAndLevelUp(amount) {
+        state.exp += amount;
+        let didLevelUp = false;
+        let prevLevel = state.level;
+
+        while (state.exp >= state.maxExp) {
+            state.level++;
+            state.exp -= state.maxExp;
+            state.maxExp = Math.floor(state.maxExp * 1.5);
+            didLevelUp = true;
+        }
+        saveData();
+
+        if (didLevelUp) {
+            return `✨ レベルアップ！ Lv.${prevLevel} ➔ Lv.${state.level} になったよ！`;
+        }
+        return '';
+    }
+
+    function gameOver() {
+        state.isPaused = true;
+        if (clockTimer) clearInterval(clockTimer);
+
+        showModal('ゲームオーバー', `モンスターに攻撃されちゃった…！<br>スコア: ${state.score}点<br>※ステージ未クリアのため経験値はありません。<br>もういちどちょうせんする？`, () => {
+            showStartLevelSelect();
+        });
+    }
+
+    let customModalCallback = null;
+    function showModal(title, bodyHtml, callback = null, hideOkBtn = false) {
+        state.isPaused = true;
+        document.getElementById('modal-title').innerText = title;
+        document.getElementById('modal-body').innerHTML = bodyHtml;
+        customModalCallback = callback;
+        
+        const okBtn = document.getElementById('modal-ok-btn');
+        if (hideOkBtn) {
+            okBtn.style.display = 'none';
+        } else {
+            okBtn.style.display = 'inline-block';
+            okBtn.innerText = callback ? 'OK!' : 'OK!';
+        }
+        
+        document.getElementById('modal').classList.remove('hidden');
+    }
+
+    function closeModal() {
+        document.getElementById('modal').classList.add('hidden');
+        state.isPaused = false;
+        if (customModalCallback) {
+            customModalCallback();
+            customModalCallback = null;
+        }
+    }
+
+    function switchView(viewName) {
+        if (viewName === 'game') {
+            document.getElementById('game-view').classList.remove('hidden');
+            document.getElementById('dressup-view').classList.add('hidden');
+            document.getElementById('collection-view').classList.add('hidden');
+        } else if (viewName === 'dressup') {
+            document.getElementById('game-view').classList.add('hidden');
+            document.getElementById('dressup-view').classList.remove('hidden');
+            document.getElementById('collection-view').classList.add('hidden');
+        } else if (viewName === 'collection') {
+            document.getElementById('game-view').classList.add('hidden');
+            document.getElementById('dressup-view').classList.add('hidden');
+            document.getElementById('collection-view').classList.remove('hidden');
+        }
+        document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+        document.getElementById(`nav-${viewName}`).classList.add('active');
+    }
+
+    function renderDressupGrid() {
+        const baseContainer = document.getElementById('base-selector');
+        const accContainer = document.getElementById('acc-selector');
+        baseContainer.innerHTML = '';
+        accContainer.innerHTML = '';
+
+        BASES.forEach(b => {
+            const isUnlocked = state.level >= b.reqLevel;
+            const isSelected = state.currentBase === b.icon;
+            const card = document.createElement('div');
+            card.className = `item-card ${isSelected ? 'selected' : ''} ${!isUnlocked ? 'locked' : ''}`;
+            card.innerHTML = `${b.icon} ${!isUnlocked ? `<span class="lock-icon">🔒Lv.${b.reqLevel}</span>` : ''}`;
+            if (isUnlocked) {
+                card.onclick = () => { state.currentBase = b.icon; saveData(); updateUI(); renderDressupGrid(); };
+            }
+            baseContainer.appendChild(card);
+        });
+
+        ACCS.forEach(a => {
+            const isUnlocked = state.level >= a.reqLevel;
+            const isSelected = state.currentAcc === a.icon;
+            const card = document.createElement('div');
+            card.className = `item-card ${isSelected ? 'selected' : ''} ${!isUnlocked ? 'locked' : ''}`;
+            card.innerHTML = `${a.icon || '❌'} ${!isUnlocked ? `<span class="lock-icon">🔒Lv.${a.reqLevel}</span>` : ''}`;
+            if (isUnlocked) {
+                card.onclick = () => { state.currentAcc = a.icon; saveData(); updateUI(); renderDressupGrid(); };
+            }
+            accContainer.appendChild(card);
+        });
+    }
+
+    function renderTitleList() {
+        const containerEl = document.getElementById('title-list');
+        containerEl.innerHTML = '';
+        TITLES.forEach(t => {
+            const isUnlocked = state.level >= t.level;
+            const item = document.createElement('div');
+            item.className = `title-item ${isUnlocked ? 'unlocked' : 'locked'}`;
+            item.innerHTML = `
+                <div style="font-size: 22px;">${isUnlocked ? '👑' : '🔒'}</div>
+                <div>
+                    <div style="font-weight: bold; font-size: 13px;">${t.name}</div>
+                    <div style="font-size: 10px; color: #8888aa;">Lv.${t.level} で解放</div>
+                </div>
+            `;
+            containerEl.appendChild(item);
+        });
+    }
+
+    window.onload = init;
+</script>
+</body>
+</html>
