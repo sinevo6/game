@@ -7,3 +7,12 @@
     "path": "game1/index.html"
   }
 ]
+[
+  {
+    "id": "sengoku",
+    "title": "戦国合戦無双",
+    "description": "群がる敵を薙ぎ払え！",
+    "icon": "卍",
+    "path": "game2/index.html"
+  }
+]
