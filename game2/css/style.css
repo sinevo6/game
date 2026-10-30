@@ -1,0 +1,66 @@
+body {
+    margin: 0;
+    overflow: hidden;
+    background-color: #12100e;
+    font-family: system-ui, sans-serif;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+}
+
+canvas {
+    display: block;
+    cursor: crosshair;
+}
+
+.hud-panel {
+    background: rgba(20, 18, 16, 0.92);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(220, 38, 38, 0.4);
+}
+
+.btn-mode {
+    transition: all 0.2s;
+}
+
+.btn-mode:hover {
+    transform: scale(1.05);
+}
+
+/* アナログジョイスティック */
+#joystick-zone {
+    position: absolute;
+    bottom: 24px;
+    left: 24px;
+    width: 140px;
+    height: 140px;
+    background: rgba(40, 30, 25, 0.6);
+    border: 2px solid rgba(220, 38, 38, 0.6);
+    border-radius: 50%;
+    touch-action: none;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#joystick-knob {
+    width: 50px;
+    height: 50px;
+    background: rgba(220, 38, 38, 0.8);
+    border: 2px solid #ffffff;
+    border-radius: 50%;
+    position: absolute;
+    box-shadow: 0 0 10px rgba(0,0,0,0.5);
+    pointer-events: none;
+}
+
+/* 突撃・戦術インジケーター */
+#tactical-overlay {
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 40;
+    pointer-events: none;
+}
