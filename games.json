@@ -13,4 +13,13 @@
     "icon": "⚔️",
     "path": "game2/index.html"
   }
+
+  {
+    "id": "shinobi",
+    "title": "忍者",
+    "description": "群がる敵を薙ぎ払え！",
+    "icon": "🥷",
+    "path": "game3/index.html"
+  }
+  
 ]
