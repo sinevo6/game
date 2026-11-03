@@ -13,7 +13,6 @@
     "icon": "⚔️",
     "path": "game2/index.html"
   },
-
   {
     "id": "shinobi",
     "title": "忍者",
@@ -21,5 +20,4 @@
     "icon": "🥷",
     "path": "game3/index.html"
   }
-  
 ]
